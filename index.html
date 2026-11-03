@@ -1,0 +1,144 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ECE Interactive Simulation Library</title>
+
+<style>
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #f2f5fa;
+  color: #172b4d;
+}
+
+header {
+  background: #102b50;
+  color: white;
+  text-align: center;
+  padding: 35px 15px;
+}
+
+header h1 { margin: 0 0 10px; }
+header p { margin: 0; color: #dce7f5; }
+
+.container {
+  max-width: 1050px;
+  margin: 30px auto;
+  padding: 0 18px;
+}
+
+h2 { color: #102b50; }
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 18px;
+}
+
+.card {
+  background: white;
+  padding: 22px;
+  border-radius: 12px;
+  box-shadow: 0 3px 12px rgba(0,0,0,0.08);
+  border-left: 5px solid #c49a45;
+}
+
+.card h3 { margin-top: 0; }
+
+.card a {
+  display: inline-block;
+  background: #102b50;
+  color: white;
+  padding: 10px 15px;
+  border-radius: 6px;
+  text-decoration: none;
+  margin-top: 8px;
+}
+
+.card a:hover { background: #c49a45; }
+
+footer {
+  text-align: center;
+  padding: 22px;
+  background: #102b50;
+  color: white;
+  margin-top: 40px;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  <h1>ECE Interactive Simulation Library</h1>
+  <p>Department of Electronics & Communication Engineering</p>
+  <p>Learn Digital Electronics through Interactive Simulations</p>
+</header>
+
+<div class="container">
+  <h2>Digital Electronics Simulations</h2>
+
+  <div class="grid">
+
+    <div class="card">
+      <h3>Johnson Counter</h3>
+      <p>Explore the working of a Johnson counter.</p>
+      <a href="johnson_counter_step_through.html">Open Simulation</a>
+    </div>
+
+    <div class="card">
+      <h3>PIPO Shift Register</h3>
+      <p>Parallel-In Parallel-Out shift register.</p>
+      <a href="pipo_shift_register_step_through.html">Open Simulation</a>
+    </div>
+
+    <div class="card">
+      <h3>PISO Shift Register</h3>
+      <p>Parallel-In Serial-Out shift register.</p>
+      <a href="piso_shift_register_step_through.html">Open Simulation</a>
+    </div>
+
+    <div class="card">
+      <h3>RAM Binary Cell</h3>
+      <p>Understand the operation of a RAM binary cell.</p>
+      <a href="ram_binary_cell_simulator.html">Open Simulation</a>
+    </div>
+
+    <div class="card">
+      <h3>Ring Counter</h3>
+      <p>Explore ring counter operation and waveforms.</p>
+      <a href="ring_counter_with_waveform.html">Open Simulation</a>
+    </div>
+
+    <div class="card">
+      <h3>Sample and Hold Circuit</h3>
+      <p>Understand sampling and holding of signals.</p>
+      <a href="sample_and_hold_interactive.html">Open Simulation</a>
+    </div>
+
+    <div class="card">
+      <h3>SIPO Shift Register</h3>
+      <p>Serial-In Parallel-Out shift register.</p>
+      <a href="sipo_shift_register_step_through.html">Open Simulation</a>
+    </div>
+
+    <div class="card">
+      <h3>SISO Shift Register</h3>
+      <p>Serial-In Serial-Out shift register.</p>
+      <a href="siso_shift_register_step_through.html">Open Simulation</a>
+    </div>
+
+  </div>
+</div>
+
+<footer>
+  © Jasmeen Kaur | Deptt. of ECE | LKCTC
+</footer>
+
+</body>
+</html>
