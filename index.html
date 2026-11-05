@@ -4,10 +4,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <title>ECE Interactive Simulation Library</title>
 
 <style>
-* { box-sizing: border-box; }
+* {
+  box-sizing: border-box;
+}
 
 body {
   margin: 0;
@@ -20,54 +23,100 @@ header {
   background: #102b50;
   color: white;
   text-align: center;
-  padding: 35px 15px;
+  padding: 38px 15px;
+  border-bottom: 5px solid #c49a45;
 }
 
-header h1 { margin: 0 0 10px; }
-header p { margin: 0; color: #dce7f5; }
+header h1 {
+  margin: 0 0 12px;
+  font-size: 30px;
+}
+
+header p {
+  margin: 5px 0;
+  color: #dce7f5;
+}
 
 .container {
-  max-width: 1050px;
+  max-width: 1150px;
   margin: 30px auto;
-  padding: 0 18px;
+  padding: 0 20px;
 }
 
-h2 { color: #102b50; }
+h2 {
+  color: #102b50;
+  margin-bottom: 8px;
+}
+
+.subtitle {
+  color: #64748b;
+  margin-bottom: 25px;
+}
 
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-  gap: 18px;
+  gap: 20px;
 }
 
 .card {
   background: white;
-  padding: 22px;
+  padding: 23px;
   border-radius: 12px;
-  box-shadow: 0 3px 12px rgba(0,0,0,0.08);
   border-left: 5px solid #c49a45;
+  box-shadow: 0 3px 12px rgba(0,0,0,0.08);
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.2s, box-shadow 0.2s;
 }
 
-.card h3 { margin-top: 0; }
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 7px 18px rgba(0,0,0,0.13);
+}
+
+.card h3 {
+  color: #102b50;
+  margin: 0 0 12px;
+  font-size: 19px;
+}
+
+.card p {
+  color: #526174;
+  line-height: 1.5;
+  flex-grow: 1;
+}
 
 .card a {
   display: inline-block;
   background: #102b50;
   color: white;
-  padding: 10px 15px;
+  padding: 11px 15px;
   border-radius: 6px;
+  text-align: center;
   text-decoration: none;
-  margin-top: 8px;
+  font-weight: bold;
+  margin-top: 10px;
 }
 
-.card a:hover { background: #c49a45; }
+.card a:hover {
+  background: #c49a45;
+  color: #102b50;
+}
+
+#status {
+  text-align: center;
+  padding: 25px;
+  color: #526174;
+}
 
 footer {
   text-align: center;
   padding: 22px;
   background: #102b50;
   color: white;
-  margin-top: 40px;
+  margin-top: 45px;
+  border-top: 4px solid #c49a45;
 }
 </style>
 </head>
@@ -81,64 +130,102 @@ footer {
 </header>
 
 <div class="container">
-  <h2>Digital Electronics Simulations</h2>
 
-  <div class="grid">
+  <h2>Available Simulations</h2>
 
-    <div class="card">
-      <h3>Johnson Counter</h3>
-      <p>Explore the working of a Johnson counter.</p>
-      <a href="johnson_counter_step_through.html">Open Simulation</a>
-    </div>
+  <p class="subtitle">
+    Select a simulation below to explore its working interactively.
+  </p>
 
-    <div class="card">
-      <h3>PIPO Shift Register</h3>
-      <p>Parallel-In Parallel-Out shift register.</p>
-      <a href="pipo_shift_register_step_through.html">Open Simulation</a>
-    </div>
+  <div id="status">Loading simulations...</div>
 
-    <div class="card">
-      <h3>PISO Shift Register</h3>
-      <p>Parallel-In Serial-Out shift register.</p>
-      <a href="piso_shift_register_step_through.html">Open Simulation</a>
-    </div>
+  <div class="grid" id="simulationGrid"></div>
 
-    <div class="card">
-      <h3>RAM Binary Cell</h3>
-      <p>Understand the operation of a RAM binary cell.</p>
-      <a href="ram_binary_cell_simulator.html">Open Simulation</a>
-    </div>
-
-    <div class="card">
-      <h3>Ring Counter</h3>
-      <p>Explore ring counter operation and waveforms.</p>
-      <a href="ring_counter_with_waveform.html">Open Simulation</a>
-    </div>
-
-    <div class="card">
-      <h3>Sample and Hold Circuit</h3>
-      <p>Understand sampling and holding of signals.</p>
-      <a href="sample_and_hold_interactive.html">Open Simulation</a>
-    </div>
-
-    <div class="card">
-      <h3>SIPO Shift Register</h3>
-      <p>Serial-In Parallel-Out shift register.</p>
-      <a href="sipo_shift_register_step_through.html">Open Simulation</a>
-    </div>
-
-    <div class="card">
-      <h3>SISO Shift Register</h3>
-      <p>Serial-In Serial-Out shift register.</p>
-      <a href="siso_shift_register_step_through.html">Open Simulation</a>
-    </div>
-
-  </div>
 </div>
 
 <footer>
   © Jasmeen Kaur | Deptt. of ECE | LKCTC
 </footer>
+
+<script>
+const username = "jasmeen-hash";
+const repository = "ece-simulations";
+const branch = "main";
+
+const apiURL =
+  `https://api.github.com/repos/${username}/${repository}/contents/?ref=${branch}`;
+
+function makeTitle(filename) {
+  return filename
+    .replace(/\.html$/i, "")
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b\w/g, letter => letter.toUpperCase());
+}
+
+async function loadSimulations() {
+  const status = document.getElementById("status");
+  const grid = document.getElementById("simulationGrid");
+
+  try {
+    const response = await fetch(apiURL);
+
+    if (!response.ok) {
+      throw new Error("Unable to retrieve the simulation list.");
+    }
+
+    const files = await response.json();
+
+    const simulations = files
+      .filter(file =>
+        file.type === "file" &&
+        file.name.toLowerCase().endsWith(".html") &&
+        file.name.toLowerCase() !== "index.html"
+      )
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    status.textContent = "";
+
+    if (simulations.length === 0) {
+      status.textContent = "No simulations found yet.";
+      return;
+    }
+
+    simulations.forEach(file => {
+      const title = makeTitle(file.name);
+
+      const card = document.createElement("div");
+      card.className = "card";
+
+      const heading = document.createElement("h3");
+      heading.textContent = title;
+
+      const description = document.createElement("p");
+      description.textContent =
+        "Explore this interactive ECE simulation.";
+
+      const link = document.createElement("a");
+      link.href = encodeURIComponent(file.name);
+      link.textContent = "Open Simulation";
+
+      card.appendChild(heading);
+      card.appendChild(description);
+      card.appendChild(link);
+
+      grid.appendChild(card);
+    });
+
+  } catch (error) {
+    status.textContent =
+      "Unable to load simulations. Please refresh the page or try again later.";
+
+    console.error(error);
+  }
+}
+
+loadSimulations();
+</script>
 
 </body>
 </html>
