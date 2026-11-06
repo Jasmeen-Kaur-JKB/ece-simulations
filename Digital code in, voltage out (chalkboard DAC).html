@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>4-bit code to voltage: chalkboard DAC</title>
+<style>
+:root{
+  color-scheme: dark;
+  --board:#2f4a3f; --board-d:#24392f; --chalk:#f5f2e8; --dim:#b9c4b8;
+  --yel:#f7e27a; --pink:#f4a9c0; --blue:#96cdf0; --wood:#8a5a2b; --wood-d:#5c3b1b;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{
+  margin:0; min-height:100vh; background:var(--wood); color:var(--chalk);
+  font-family:"Trebuchet MS","Segoe UI",system-ui,-apple-system,sans-serif; font-size:17px; line-height:1.4;
+}
+.frame{max-width:1000px; margin:0 auto; padding:10px}
+.board{
+  background:radial-gradient(ellipse at 50% 40%, var(--board) 0%, var(--board-d) 100%);
+  border:6px solid var(--wood-d); border-radius:4px; padding:18px 18px 12px;
+  box-shadow:inset 0 0 60px rgba(0,0,0,.35);
+}
+h1{margin:0; font-size:clamp(26px,5vw,40px); text-align:center; font-weight:700; letter-spacing:.5px; text-shadow:0 0 2px rgba(245,242,232,.6)}
+.sub{margin:4px 0 14px; text-align:center; color:var(--dim)}
+.rule{height:3px; width:min(360px,70%); margin:0 auto 6px; background:var(--chalk); opacity:.8; border-radius:3px}
+.scroll{overflow-x:auto; -webkit-overflow-scrolling:touch}
+svg{display:block; min-width:640px; width:100%; height:auto}
+svg text{font-family:inherit; fill:var(--chalk)}
+.sw{cursor:pointer}
+.sw:focus{outline:none}
+.sw:focus-visible rect.btn{stroke:var(--blue); stroke-width:4}
+.flow{stroke-dasharray:8 8; animation:flow 0.9s linear infinite}
+@keyframes flow{to{stroke-dashoffset:-16}}
+@media (prefers-reduced-motion:reduce){.flow{animation:none}}
+.panel{display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:12px}
+@media (max-width:700px){.panel{grid-template-columns:1fr}}
+.box{border:2px dashed rgba(245,242,232,.45); border-radius:8px; padding:12px 14px}
+.box h2{margin:0 0 6px; font-size:19px; color:var(--yel)}
+.big{font-size:clamp(34px,8vw,54px); font-weight:700; color:var(--pink); line-height:1.1}
+.code{font-size:26px; letter-spacing:6px; color:var(--yel); font-weight:700}
+.eq{color:var(--chalk); margin:6px 0 0}
+.bar{height:22px; border:2px solid var(--chalk); border-radius:4px; margin-top:10px; position:relative; overflow:hidden}
+.bar i{position:absolute; left:0; top:0; bottom:0; width:0; background:var(--pink); opacity:.85; transition:width .2s}
+.scale{display:flex; justify-content:space-between; font-size:14px; color:var(--dim)}
+.ctl{display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-top:8px}
+button,input{
+  font:inherit; color:var(--chalk); background:transparent; border:2px solid var(--chalk); border-radius:6px;
+  padding:8px 14px; min-height:44px; cursor:pointer;
+}
+button:hover{background:rgba(245,242,232,.12)}
+button:focus-visible,input:focus-visible{outline:3px solid var(--blue); outline-offset:2px}
+input{width:6.5em; text-align:center; letter-spacing:4px; cursor:text}
+table{border-collapse:collapse; width:100%; font-size:16px}
+td,th{padding:3px 6px; text-align:right}
+th{color:var(--dim); font-weight:400}
+td:first-child,th:first-child{text-align:left}
+.foot{margin-top:12px; padding-top:6px; border-top:1px solid rgba(245,242,232,.4); text-align:right; font-size:15px}
+.hint{color:var(--dim); font-size:15px; margin:4px 0 0}
+</style>
+</head>
+<body>
+<div class="frame"><div class="board">
+  <h1>Digital code in, voltage out</h1>
+  <div class="rule"></div>
+  <p class="sub">Flip the four bit switches (or type a code) and watch the currents add up to Vout.</p>
+
+  <div class="scroll"><svg id="sch" viewBox="0 0 760 330" role="img" aria-label="Binary-weighted resistor DAC with four bit switches, summing op-amp and output voltage"></svg></div>
+
+  <div class="panel">
+    <div class="box">
+      <h2>Output</h2>
+      <div class="code" id="code">1011</div>
+      <div class="eq" id="dec"></div>
+      <div class="big" id="vbig">0 V</div>
+      <div class="bar" aria-hidden="true"><i id="fill"></i></div>
+      <div class="scale" aria-hidden="true"><span>0 V</span><span>−4.6875 V (code 1111)</span></div>
+    </div>
+    <div class="box">
+      <h2>Branch currents</h2>
+      <table id="tbl"></table>
+      <p class="eq" id="calc"></p>
+    </div>
+  </div>
+
+  <div class="ctl">
+    <label for="typed">Type a code</label>
+    <input id="typed" inputmode="numeric" maxlength="4" value="1011" aria-describedby="hint">
+    <button id="inc">Count +1</button>
+    <button id="rst">Reset to 0000</button>
+  </div>
+  <p class="hint" id="hint">Each current is Vref ÷ R when its switch is up (1), and 0 when it is down (0). The op-amp is an inverting summer, so Vout is negative.</p>
+
+  <div class="foot">Jasmeen Kaur | Deptt of ECE</div>
+</div></div>
+
+<script>
+(function(){
+  var VREF=5, RF=5, R=[10,20,40,80], NAMES=['b3 (MSB)','b2','b1','b0 (LSB)'];
+  var bits=[1,0,1,1];
+  var NS='http://www.w3.org/2000/svg', svg=document.getElementById('sch');
+  var CH='#f5f2e8', YEL='#f7e27a', PINK='#f4a9c0', BLUE='#96cdf0';
+  function el(n,a,p){var e=document.createElementNS(NS,n);for(var k in a)e.setAttribute(k,a[k]);(p||svg).appendChild(e);return e}
+  function txt(s,x,y,o,p){o=o||{};var t=el('text',{x:x,y:y,'font-size':o.s||14,'text-anchor':o.a||'start'},p);if(o.f)t.setAttribute('fill',o.f);t.textContent=s;return t}
+  function ln(d,c,w,extra){var a={d:d,fill:'none',stroke:c||CH,'stroke-width':w||2.5,'stroke-linecap':'round','stroke-linejoin':'round'};for(var k in (extra||{}))a[k]=extra[k];return el('path',a)}
+  function zig(x1,x2,y){var s='M'+x1+' '+y,n=6,w=(x2-x1-16)/n;s+=' L'+(x1+8)+' '+y;for(var i=0;i<n;i++)s+=' L'+(x1+8+w*(i+.5))+' '+(y+(i%2?8:-8));s+=' L'+(x2-8)+' '+y+' L'+x2+' '+y;return s}
+  function fmt(v,d){var s=v.toFixed(d);return (s.replace(/^-/,'−'))}
+
+  var rows=[];
+  txt('Switch up = +5 V (bit 1), down = 0 V (bit 0)',14,22,{s:14,f:'#b9c4b8'});
+  for(var i=0;i<4;i++){
+    var y=70+i*70, r={};
+    txt(NAMES[i],14,y-24,{s:14,f:YEL});
+    r.wa=ln('M70 '+y+' H150',CH,2.5);
+    ln(zig(150,230,y),CH,2.5);
+    txt(R[i]+' kΩ',190,y+28,{s:14,a:'middle',f:'#b9c4b8'});
+    r.wb=ln('M230 '+y+' H320',CH,3);
+    r.cur=txt('',275,y-10,{s:15,a:'middle',f:YEL});
+    var g=el('g',{'class':'sw',tabindex:0,role:'switch','aria-label':NAMES[i]+' switch'});
+    r.btn=el('rect',{'class':'btn',x:14,y:y-20,width:56,height:40,rx:6,fill:'#24392f',stroke:CH,'stroke-width':2.5},g);
+    r.val=txt('0',42,y+9,{s:26,a:'middle'},g);
+    r.vt=txt('',84,y-26,{s:12,f:'#b9c4b8'},g);
+    r.g=g; rows.push(r);
+    (function(k){g.addEventListener('click',function(){bits[k]^=1;draw()});g.addEventListener('keydown',function(e){if(e.key===' '||e.key==='Enter'){e.preventDefault();bits[k]^=1;draw()}})})(i);
+  }
+  // bus and op-amp
+  var bus=ln('M320 70 V280',CH,3);
+  ln('M320 160 H400',CH,3);
+  el('circle',{cx:320,cy:160,r:4,fill:CH});
+  el('polygon',{points:'400,125 400,255 540,190',fill:'#24392f',stroke:CH,'stroke-width':3,'stroke-linejoin':'round'});
+  txt('−',410,165,{s:22}); txt('+',410,230,{s:22});
+  ln('M400 222 H372 V242',CH,2.5); ln('M358 242 H386 M364 249 H380 M369 256 H375',CH,2.5);
+  // feedback
+  ln('M350 160 V95 H420',CH,2.5); el('circle',{cx:350,cy:160,r:4,fill:CH});
+  ln(zig(420,500,95),CH,2.5); ln('M500 95 H570 V190',CH,2.5); el('circle',{cx:570,cy:190,r:4,fill:CH});
+  txt('Rf = '+RF+' kΩ',460,76,{s:14,a:'middle',f:'#b9c4b8'});
+  var sum=txt('',460,122,{s:14,a:'middle',f:YEL});
+  // output
+  var outw=ln('M540 190 H610',CH,3);
+  txt('Vout',675,152,{s:16,a:'middle',f:PINK});
+  el('rect',{x:610,y:164,width:130,height:52,rx:8,fill:'#24392f',stroke:PINK,'stroke-width':2.5});
+  var vsvg=txt('',675,198,{s:24,a:'middle',f:PINK});
+
+  var tbl=document.getElementById('tbl');
+  function draw(){
+    var tot=0, D=0;
+    for(var i=0;i<4;i++){
+      var I=bits[i]*VREF/R[i]; tot+=I; D+=bits[i]<<(3-i);
+      var r=rows[i], on=bits[i]===1;
+      r.val.textContent=bits[i];
+      r.btn.setAttribute('stroke',on?YEL:CH);
+      r.val.setAttribute('fill',on?YEL:CH);
+      r.vt.textContent=on?'+5 V':'0 V';
+      r.g.setAttribute('aria-checked',on);
+      r.cur.textContent=fmt(I,4)+' mA';
+      r.cur.setAttribute('opacity',on?1:.45);
+      [r.wa,r.wb].forEach(function(w){w.setAttribute('stroke',on?YEL:CH);w.setAttribute('class',on?'flow':'')});
+    }
+    var V=-RF*tot, V0=Math.abs(V)<1e-9?0:V;
+    var vs=fmt(V0,4)+' V';
+    vsvg.textContent=vs; sum.textContent='ΣI = '+fmt(tot,4)+' mA';
+    document.getElementById('vbig').textContent=vs;
+    document.getElementById('code').textContent=bits.join('');
+    document.getElementById('dec').textContent='Decimal '+D+' of 15';
+    document.getElementById('fill').style.width=(Math.abs(V0)/4.6875*100)+'%';
+    var h='<tr><th>Bit</th><th>R</th><th>I</th></tr>';
+    for(var j=0;j<4;j++)h+='<tr><td>'+NAMES[j].split(' ')[0]+' = '+bits[j]+'</td><td>'+R[j]+' kΩ</td><td>'+fmt(bits[j]*VREF/R[j],4)+' mA</td></tr>';
+    h+='<tr><td><b>Total</b></td><td></td><td><b>'+fmt(tot,4)+' mA</b></td></tr>';
+    tbl.innerHTML=h;
+    document.getElementById('calc').textContent='Vout = −Rf × ΣI = −'+RF+' kΩ × '+fmt(tot,4)+' mA = '+vs+'  (−5 V × '+D+'/16)';
+    var t=document.getElementById('typed'); if(document.activeElement!==t)t.value=bits.join('');
+  }
+  document.getElementById('typed').addEventListener('input',function(e){
+    var v=e.target.value.replace(/[^01]/g,'');e.target.value=v;
+    if(v.length===4){bits=v.split('').map(Number);draw()}
+  });
+  document.getElementById('inc').addEventListener('click',function(){
+    var D=((parseInt(bits.join(''),2)+1)%16);bits=('0000'+D.toString(2)).slice(-4).split('').map(Number);draw()});
+  document.getElementById('rst').addEventListener('click',function(){bits=[0,0,0,0];draw()});
+  draw();
+})();
+</script>
+</body>
+</html>

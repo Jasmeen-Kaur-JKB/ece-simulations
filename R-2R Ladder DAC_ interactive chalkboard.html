@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>R-2R ladder DAC: interactive chalkboard</title>
+<style>
+:root{
+  color-scheme: dark;
+  --board:#2f4a3f; --board-d:#24392f; --chalk:#f5f2e8; --dim:#b9c4b8;
+  --yel:#f7e27a; --pink:#f4a9c0; --blue:#96cdf0; --wood:#8a5a2b; --wood-d:#5c3b1b;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0; min-height:100vh; background:var(--wood); color:var(--chalk);
+  font-family:"Trebuchet MS","Segoe UI",system-ui,-apple-system,sans-serif; font-size:17px; line-height:1.4}
+.frame{max-width:1040px; margin:0 auto; padding:10px}
+.board{background:radial-gradient(ellipse at 50% 40%, var(--board) 0%, var(--board-d) 100%);
+  border:6px solid var(--wood-d); border-radius:4px; padding:18px 18px 12px; box-shadow:inset 0 0 60px rgba(0,0,0,.35)}
+h1{margin:0; font-size:clamp(26px,5vw,40px); text-align:center; font-weight:700; text-shadow:0 0 2px rgba(245,242,232,.6)}
+.rule{height:3px; width:min(360px,70%); margin:6px auto; background:var(--chalk); opacity:.8; border-radius:3px}
+.sub{margin:4px 0 12px; text-align:center; color:var(--dim)}
+.scroll{overflow-x:auto; -webkit-overflow-scrolling:touch}
+svg{display:block; min-width:700px; width:100%; height:auto}
+svg text{font-family:inherit; fill:var(--chalk)}
+.sw{cursor:pointer}
+.sw:focus{outline:none}
+.sw:focus-visible rect.btn{stroke:var(--blue); stroke-width:4}
+.up{stroke-dasharray:8 8; animation:up .9s linear infinite}
+.dn{stroke-dasharray:8 8; animation:dn .9s linear infinite}
+@keyframes up{to{stroke-dashoffset:16}}
+@keyframes dn{to{stroke-dashoffset:-16}}
+@media (prefers-reduced-motion:reduce){.up,.dn{animation:none}}
+.panel{display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:12px}
+@media (max-width:700px){.panel{grid-template-columns:1fr}}
+.box{border:2px dashed rgba(245,242,232,.45); border-radius:8px; padding:12px 14px}
+.box h2{margin:0 0 6px; font-size:19px; color:var(--yel)}
+.big{font-size:clamp(34px,8vw,54px); font-weight:700; color:var(--pink); line-height:1.1}
+.code{font-size:26px; letter-spacing:6px; color:var(--yel); font-weight:700}
+.eq{margin:6px 0 0}
+.bar{height:22px; border:2px solid var(--chalk); border-radius:4px; margin-top:10px; position:relative; overflow:hidden}
+.bar i{position:absolute; left:0; top:0; bottom:0; width:0; background:var(--pink); opacity:.85; transition:width .2s}
+.scale{display:flex; justify-content:space-between; font-size:14px; color:var(--dim)}
+table{border-collapse:collapse; width:100%; font-size:16px}
+td,th{padding:3px 6px; text-align:right}
+th{color:var(--dim); font-weight:400}
+td:first-child,th:first-child{text-align:left}
+tr.tot td{border-top:2px solid var(--chalk); color:var(--pink); font-weight:700}
+.ctl{display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-top:12px}
+button,input,select{font:inherit; color:var(--chalk); background:transparent; border:2px solid var(--chalk); border-radius:6px; padding:8px 14px; min-height:44px; cursor:pointer}
+select option{color:#111; background:#eee}
+button:hover{background:rgba(245,242,232,.12)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--blue); outline-offset:2px}
+input{width:6.5em; text-align:center; letter-spacing:4px; cursor:text}
+.steps{display:flex; gap:4px; align-items:flex-end; height:110px; margin-top:6px}
+.steps button{flex:1; padding:0; min-height:0; height:100%; border:none; border-bottom:2px solid var(--chalk); border-radius:0; display:flex; align-items:flex-end; position:relative}
+.steps button i{display:block; width:100%; background:var(--blue); opacity:.55; border-radius:3px 3px 0 0}
+.steps button.on i{background:var(--pink); opacity:1}
+.steps button span{position:absolute; left:0; right:0; bottom:-22px; font-size:12px; color:var(--dim); text-align:center}
+.steps button.on span{color:var(--yel)}
+.stepwrap{margin-top:12px; padding-bottom:24px}
+.hint{color:var(--dim); font-size:15px; margin:6px 0 0}
+.foot{margin-top:12px; padding-top:6px; border-top:1px solid rgba(245,242,232,.4); text-align:right; font-size:15px}
+</style>
+</head>
+<body>
+<div class="frame"><div class="board">
+  <h1>R-2R Ladder DAC</h1>
+  <div class="rule"></div>
+  <p class="sub">Flip a bit switch, type a code, or tap a step below. The ladder solves itself and Vout updates live.</p>
+
+  <div class="scroll"><svg id="sch" viewBox="0 0 880 340" role="img" aria-label="R-2R ladder with four bit switches, node voltages, branch currents and output voltage"></svg></div>
+
+  <div class="panel">
+    <div class="box">
+      <h2>Output</h2>
+      <div class="code" id="code">1011</div>
+      <div class="eq" id="dec"></div>
+      <div class="big" id="vbig">0 V</div>
+      <div class="bar" aria-hidden="true"><i id="fill"></i></div>
+      <div class="scale" aria-hidden="true"><span>0 V</span><span id="fs"></span></div>
+      <p class="eq" id="calc"></p>
+    </div>
+    <div class="box">
+      <h2>Each bit adds its own share</h2>
+      <table id="tbl"></table>
+      <p class="hint">Superposition: with only bit k on, the ladder gives Vref ÷ 2<sup>n</sup>. The total is the sum of the shares.</p>
+    </div>
+  </div>
+
+  <div class="stepwrap box">
+    <h2 style="margin-bottom:0">All 16 output steps (tap one)</h2>
+    <div class="steps" id="steps"></div>
+  </div>
+
+  <div class="ctl">
+    <label for="typed">Type a code</label>
+    <input id="typed" inputmode="numeric" maxlength="4" value="1011">
+    <label for="vref">Vref</label>
+    <select id="vref"><option value="3.3">3.3 V</option><option value="5" selected>5 V</option><option value="10">10 V</option></select>
+    <button id="inc">Count +1</button>
+    <button id="rst">Reset to 0000</button>
+  </div>
+  <p class="hint">Ladder values: R = 10 kΩ, 2R = 20 kΩ, output unloaded. A bit at 1 connects its 2R leg to Vref, a bit at 0 connects it to 0 V. Current arrows show real flow: ↑ into the ladder, ↓ out to 0 V.</p>
+
+  <div class="foot">Jasmeen Kaur | Deptt of ECE</div>
+</div></div>
+
+<script>
+(function(){
+  var B=[1,1,0,1]; // B[k] = bit k, k=0 is LSB; code 1011
+  var VREF=5, R=10; // kOhm
+  var NS='http://www.w3.org/2000/svg', svg=document.getElementById('sch');
+  var CH='#f5f2e8', YEL='#f7e27a', PINK='#f4a9c0', BLUE='#96cdf0', DIM='#b9c4b8';
+  var X=[230,400,570,740], Y=110, YB=240;
+  function el(n,a,p){var e=document.createElementNS(NS,n);for(var k in a)e.setAttribute(k,a[k]);(p||svg).appendChild(e);return e}
+  function txt(s,x,y,o,p){o=o||{};var t=el('text',{x:x,y:y,'font-size':o.s||14,'text-anchor':o.a||'start'},p);if(o.f)t.setAttribute('fill',o.f);t.textContent=s;return t}
+  function ln(d,c,w){return el('path',{d:d,fill:'none',stroke:c||CH,'stroke-width':w||2.5,'stroke-linecap':'round','stroke-linejoin':'round'})}
+  function zh(x1,x2,y,c){var l=40,a=x1+l,b=x2-l,n=6,s='M'+x1+' '+y+' L'+a+' '+y;for(var i=0;i<n;i++)s+=' L'+(a+(b-a)*(i+.5)/n)+' '+(y+(i%2?9:-9));return ln(s+' L'+b+' '+y+' L'+x2+' '+y,c)}
+  function zv(x,y1,y2,c){var l=22,a=y1+l,b=y2-l,n=6,s='M'+x+' '+y1+' L'+x+' '+a;for(var i=0;i<n;i++)s+=' L'+(x+(i%2?9:-9))+' '+(a+(b-a)*(i+.5)/n);return ln(s+' L'+x+' '+b+' L'+x+' '+y2,c)}
+  function fmt(v,d){return v.toFixed(d).replace(/^-/,'−')}
+
+  // termination and ground
+  zh(80,230,Y,YEL); ln('M80 '+Y+' V200',CH); ln('M80 200 V212 M58 212 H102 M66 222 H94 M74 232 H86',CH);
+  txt('2R',155,Y-20,{s:15,a:'middle',f:YEL});
+  var termI=txt('',80,262,{s:14,a:'middle',f:PINK});
+  // rail
+  var rI=[];
+  for(var k=0;k<3;k++){zh(X[k],X[k+1],Y,BLUE);txt('R',(X[k]+X[k+1])/2,Y-18,{s:15,a:'middle',f:BLUE});rI.push(txt('',(X[k]+X[k+1])/2,Y+30,{s:14,a:'middle',f:PINK}))}
+  ln('M740 '+Y+' H810',CH,3); el('circle',{cx:810,cy:Y,r:6,fill:PINK});
+  txt('Vout',810,Y-48,{s:17,a:'middle',f:PINK});
+  var vOut=txt('',810,Y-26,{s:19,a:'middle',f:PINK});
+  txt('(no load)',810,Y+28,{s:13,a:'middle',f:DIM});
+  var nodes=[],legs=[],legI=[],sws=[];
+  var BN=['b0 (LSB)','b1','b2','b3 (MSB)'];
+  for(var i=0;i<4;i++){
+    var x=X[i];
+    txt('N'+i,x,Y-62,{s:13,a:'middle',f:DIM});
+    nodes.push(txt('',x,Y-44,{s:15,a:'middle',f:YEL}));
+    el('circle',{cx:x,cy:Y,r:5,fill:CH});
+    zv(x,Y,YB-22,YEL); // static leg
+    var leg=ln('M'+x+' '+(Y+4)+' V'+(YB-22),YEL,5); leg.setAttribute('opacity','.0'); legs.push(leg);
+    txt('2R',x+30,Y+70,{s:15,f:YEL});
+    legI.push(txt('',x+30,Y+92,{s:14,f:PINK}));
+    var g=el('g',{'class':'sw',tabindex:0,role:'switch','aria-label':BN[i]+' switch'});
+    var btn=el('rect',{'class':'btn',x:x-34,y:YB-20,width:68,height:44,rx:6,fill:'#24392f',stroke:CH,'stroke-width':2.5},g);
+    var val=txt('0',x,YB+12,{s:26,a:'middle'},g);
+    txt(BN[i],x,YB+52,{s:14,a:'middle',f:YEL});
+    var vt=txt('',x,YB+70,{s:13,a:'middle',f:DIM});
+    sws.push({g:g,btn:btn,val:val,vt:vt});
+    (function(k){g.addEventListener('click',function(){B[k]^=1;draw()});g.addEventListener('keydown',function(e){if(e.key===' '||e.key==='Enter'){e.preventDefault();B[k]^=1;draw()}})})(i);
+  }
+
+  function solve(){
+    var g=1/(2*R), G=1/R, s=B.map(function(b){return b*VREF});
+    var A=[[2*g+G,-G,0,0,s[0]*g],[-G,g+2*G,-G,0,s[1]*g],[0,-G,g+2*G,-G,s[2]*g],[0,0,-G,g+G,s[3]*g]];
+    for(var i=0;i<4;i++){var p=A[i][i];for(var j=i;j<5;j++)A[i][j]/=p;for(var r=0;r<4;r++)if(r!==i){var f=A[r][i];for(var c=i;c<5;c++)A[r][c]-=f*A[i][c]}}
+    return [A[0][4],A[1][4],A[2][4],A[3][4]];
+  }
+  function ua(i){return Math.abs(i)<1e-9?'0.0 µA':fmt(Math.abs(i)*1000,1)+' µA'}
+
+  var steps=document.getElementById('steps'), stepBtns=[];
+  for(var n=0;n<16;n++){(function(n){var b=document.createElement('button');b.setAttribute('aria-label','Set code '+('0000'+n.toString(2)).slice(-4));b.innerHTML='<i style="height:'+((n+1)/16*100)+'%"></i><span>'+n+'</span>';b.addEventListener('click',function(){setD(n)});steps.appendChild(b);stepBtns.push(b)})(n)}
+  function setD(n){for(var k=0;k<4;k++)B[k]=(n>>k)&1;draw()}
+
+  function draw(){
+    var V=solve(), D=B[3]*8+B[2]*4+B[1]*2+B[0], tbl='<tr><th>Bit</th><th>Share</th><th>Adds</th></tr>', tot=0;
+    for(var i=0;i<4;i++){
+      var on=B[i]===1, s=sws[i];
+      s.val.textContent=B[i]; s.btn.setAttribute('stroke',on?YEL:CH); s.val.setAttribute('fill',on?YEL:CH);
+      s.vt.textContent=on?'to Vref ('+VREF+' V)':'to 0 V'; s.g.setAttribute('aria-checked',on);
+      nodes[i].textContent=fmt(V[i],4)+' V';
+      var iL=(B[i]*VREF-V[i])/(2*R); // mA, positive = up into node
+      var leg=legs[i]; leg.setAttribute('opacity',Math.abs(iL)>1e-9?'.9':'0'); leg.setAttribute('stroke',iL>0?YEL:PINK); leg.setAttribute('class',iL>1e-9?'up':(iL<-1e-9?'dn':''));
+      legI[i].textContent=(iL>1e-9?'↑ ':(iL<-1e-9?'↓ ':''))+ua(iL);
+      var sh=B[i]*VREF/Math.pow(2,4-i); tot+=sh;
+    }
+    for(var j=3;j>=0;j--){var q=B[j]*VREF/Math.pow(2,4-j);tbl+='<tr><td>b'+j+' = '+B[j]+'</td><td>Vref/'+Math.pow(2,4-j)+'</td><td>'+fmt(q,4)+' V</td></tr>'}
+    tbl+='<tr class="tot"><td>Total</td><td></td><td>'+fmt(tot,4)+' V</td></tr>';
+    document.getElementById('tbl').innerHTML=tbl;
+    termI.textContent='↓ '+ua(V[0]/(2*R));
+    for(var k=0;k<3;k++){var ir=(V[k]-V[k+1])/R;rI[k].textContent=(ir>1e-9?'→ ':(ir<-1e-9?'← ':''))+ua(ir)}
+    var vs=fmt(V[3],4)+' V';
+    vOut.textContent=vs;
+    document.getElementById('vbig').textContent=vs;
+    document.getElementById('code').textContent=''+B[3]+B[2]+B[1]+B[0];
+    document.getElementById('dec').textContent='Decimal D = '+D+' of 15';
+    document.getElementById('fill').style.width=(V[3]/(VREF*15/16)*100)+'%';
+    document.getElementById('fs').textContent=fmt(VREF*15/16,4)+' V (code 1111)';
+    document.getElementById('calc').textContent='Vout = Vref × D / 16 = '+VREF+' × '+D+'/16 = '+vs;
+    stepBtns.forEach(function(b,n){b.className=n===D?'on':''});
+    var t=document.getElementById('typed'); if(document.activeElement!==t)t.value=''+B[3]+B[2]+B[1]+B[0];
+  }
+  document.getElementById('typed').addEventListener('input',function(e){
+    var v=e.target.value.replace(/[^01]/g,'');e.target.value=v;
+    if(v.length===4)setD(parseInt(v,2));
+  });
+  document.getElementById('vref').addEventListener('change',function(e){VREF=parseFloat(e.target.value);draw()});
+  document.getElementById('inc').addEventListener('click',function(){setD((B[3]*8+B[2]*4+B[1]*2+B[0]+1)%16)});
+  document.getElementById('rst').addEventListener('click',function(){setD(0)});
+  draw();
+})();
+</script>
+</body>
+</html>
