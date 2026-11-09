@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SAR ADC – chalkboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;500&display=swap" rel="stylesheet">
+<style>
+html,body{margin:0;background:#2b2b2b}
+body{display:flex;justify-content:center;padding:12px}
+#b{width:100%;max-width:560px;box-sizing:border-box;background:#1e2b25;border:8px solid #8a6a43;border-radius:8px;padding:10px 8px 14px;font-family:'Caveat','Comic Sans MS',cursive;color:#f2f0e6}
+#b svg{display:block}
+#b svg text{font-family:'Caveat','Comic Sans MS',cursive;fill:#f2f0e6;font-size:15px}
+#b .w{stroke:#f2f0e6;stroke-width:1.6;fill:none;stroke-linecap:round;stroke-linejoin:round}
+#b .bx{stroke:#f2f0e6;stroke-width:1.6;fill:#1e2b25}
+#b button{font-family:inherit;font-size:19px;color:#f2f0e6;background:transparent;border:1.5px solid #f2f0e6;border-radius:6px;padding:2px 14px;min-height:42px;cursor:pointer}
+#b button:active{background:#33463d}
+#b input[type=range]{flex:1;accent-color:#f4a9b8}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+</style>
+</head>
+<body>
+<div id="b">
+<svg width="100%" viewBox="0 0 380 280" role="img">
+<title>Successive approximation ADC block diagram</title>
+<desc>A comparator compares the analog input with the DAC output. The SAR register tries each bit from MSB to LSB and drives the DAC.</desc>
+<text x="6" y="40" style="font-size:14px">Analog input</text>
+<path class="w" d="M6 52H60"/>
+<circle cx="6" cy="52" r="3" class="w"/>
+<path class="w" d="M60 40V100L120 70Z"/>
+<text x="64" y="56" style="font-size:16px">+</text>
+<text x="64" y="94" style="font-size:16px">−</text>
+<text x="60" y="30" style="font-size:14px">Comparator</text>
+<path id="cout" class="w" d="M120 70H165V98"/>
+<path class="w" d="M160 92L165 99L170 92"/>
+<text id="ctxt" x="60" y="116" style="font-size:14px;fill:#8ecae6">Vin ≥ Vd ?</text>
+<path id="soc" class="w" d="M208 22H245V98"/>
+<path class="w" d="M240 92L245 99L250 92"/>
+<text id="soct" x="150" y="26" style="font-size:14px">SOC (start)</text>
+<path id="eoc" class="w" d="M285 100V36H300"/>
+<text id="eoct" x="304" y="40" style="font-size:14px">EOC</text>
+<rect class="bx" x="140" y="100" width="170" height="45" rx="3"/>
+<text x="225" y="120" text-anchor="middle">SAR</text>
+<text id="sartxt" x="225" y="138" text-anchor="middle" style="fill:#f4d35e;font-size:14px">idle</text>
+<path id="clk" class="w" d="M330 122H311"/>
+<text x="326" y="116" style="font-size:14px">Clock</text>
+<g id="bits"></g>
+<rect class="bx" x="140" y="220" width="170" height="44" rx="3"/>
+<text x="225" y="238" text-anchor="middle">DAC</text>
+<text id="vdtxt" x="225" y="256" text-anchor="middle" style="fill:#8ecae6;font-size:14px">Vd = 0.0 V</text>
+<path class="w" d="M140 242H20V88H60"/>
+<text x="24" y="236" style="font-size:14px">DAC output Vd</text>
+<text id="vintxt" x="6" y="68" style="font-size:14px;fill:#f4a9b8">Vin = 3.2 V</text>
+</svg>
+<svg width="100%" viewBox="0 0 380 130" role="img" style="margin-top:6px">
+<title>Binary search of Vd against Vin</title>
+<desc>Each clock tries one bit; Vd moves up or down toward Vin.</desc>
+<path class="w" d="M30 6V100H362"/>
+<text x="34" y="14" style="font-size:13px;fill:#8ecae6">Vd</text>
+<text x="48" y="120" style="font-size:13px">1st</text><text x="128" y="120" style="font-size:13px">2nd</text><text x="208" y="120" style="font-size:13px">3rd</text><text x="288" y="120" style="font-size:13px">4th trial</text>
+<path id="vinl" d="M30 50H362" stroke="#f4a9b8" stroke-width="1.5" stroke-dasharray="5 4" fill="none"/>
+<text id="vinlab" x="332" y="44" style="font-size:13px;fill:#f4a9b8">Vin</text>
+<path id="stair" d="" stroke="#8ecae6" stroke-width="2" fill="none" stroke-linejoin="round"/>
+<g id="pts"></g>
+</svg>
+<div style="font-size:14px;margin:0 4px;color:#f4d35e">● bit kept (1) &nbsp; <span style="color:#f4a9b8">○ bit cleared (0)</span></div>
+<div style="font-size:20px;margin:6px 4px 8px"><span id="code" style="color:#f4d35e">0000</span> = <span id="dec">0</span></div>
+<div id="stat" style="font-size:18px;margin:0 4px 8px;min-height:44px">Press SOC to start a conversion.</div>
+<div class="row" style="margin:0 4px 8px"><span style="font-size:19px">Vin</span><input type="range" id="vin" min="0" max="7.5" step="0.1" value="3.2" aria-label="Analog input voltage"></div>
+<div class="row" style="margin:0 4px">
+<button id="socb">SOC</button><button id="clkb">Clock</button><button id="run">Run</button>
+</div>
+</div>
+<script>
+var LSB=0.5,Y='#f4d35e',C='#f2f0e6',P='#f4a9b8';
+var active=false,done=false,code=0,k=0,H=[],T=null;
+var ns='http://www.w3.org/2000/svg',g=document.getElementById('bits'),bl=[];
+function mk(t,a){var e=document.createElementNS(ns,t);for(var n in a)e.setAttribute(n,a[n]);return e}
+for(var j=0;j<4;j++){
+ var i=3-j,x=165+j*30,y=165+j*13;
+ var v=mk('path',{d:'M'+x+' 145V220','class':'w'});g.appendChild(v);
+ var h=mk('path',{d:'M'+x+' '+y+'H305','class':'w'});g.appendChild(h);
+ g.appendChild(mk('circle',{cx:x,cy:y,r:2.5,fill:'#f2f0e6'}));
+ g.appendChild(mk('circle',{cx:305,cy:y,r:3.5,'class':'w'}));
+ var tx=mk('text',{x:314,y:y+5,style:'font-size:18px'});g.appendChild(tx);
+ var lab=mk('text',{x:332,y:y+4,style:'font-size:13px'});lab.textContent='d'+(j+1)+(j==0?' MSB':j==3?' LSB':'');g.appendChild(lab);
+ bl.push({v:v,h:h,t:tx,i:i});
+}
+function vin(){return parseFloat(document.getElementById('vin').value)}
+function bin(n){return ('0000'+n.toString(2)).slice(-4)}
+function trial(){return active&&k<4?(code|(1<<(3-k))):code}
+function yy(v){return 100-v*11.5}
+function draw(){
+ var vi=vin(),tr=trial(),vd=tr*LSB,cmp=vi>=vd;
+ document.getElementById('vintxt').textContent='Vin = '+vi.toFixed(1)+' V';
+ document.getElementById('vdtxt').textContent='Vd = '+vd.toFixed(1)+' V';
+ document.getElementById('sartxt').textContent=active?'trial '+bin(tr):done?'done '+bin(code):'idle';
+ var ct=document.getElementById('ctxt');
+ ct.textContent=active?('Vin ≥ Vd ? '+(cmp?'yes':'no')):'Vin ≥ Vd ?';
+ var cc=active&&cmp?Y:C;
+ document.getElementById('cout').setAttribute('stroke',cc);
+ document.getElementById('soc').setAttribute('stroke',active?Y:C);
+ document.getElementById('soct').style.fill=active?Y:C;
+ document.getElementById('eoc').setAttribute('stroke',done?Y:C);
+ document.getElementById('eoct').style.fill=done?Y:C;
+ bl.forEach(function(b){
+  var isT=active&&k<4&&b.i==3-k;
+  var on=isT?1:(code>>b.i)&1;
+  var c=isT?P:(on?Y:C);
+  b.v.setAttribute('stroke',c);b.h.setAttribute('stroke',c);b.t.textContent=on;b.t.style.fill=c;
+ });
+ document.getElementById('code').textContent=bin(code);
+ document.getElementById('dec').textContent=code+(done?'  ( '+(code*LSB).toFixed(1)+' V )':'');
+ var s;
+ if(!active&&!done)s='Press SOC to start a conversion.';
+ else if(done)s='EOC. Output = '+bin(code)+' = '+code+', so Vd = '+(code*LSB).toFixed(1)+' V for Vin = '+vi.toFixed(1)+' V.';
+ else s='Trial '+(k+1)+' of 4: set bit '+(3-k)+', DAC makes '+vd.toFixed(1)+' V. Vin ≥ Vd? '+(cmp?'Yes, keep the 1.':'No, clear it to 0.')+' Press Clock.';
+ document.getElementById('stat').textContent=s;
+ var w=80,p='',pts=document.getElementById('pts');pts.innerHTML='';
+ H.forEach(function(d,n){
+  var x0=30+n*w,y=yy(d.vd);
+  p+=(n==0?'M'+x0+' '+y:' V'+y)+' H'+(x0+w);
+  pts.appendChild(mk('circle',{cx:x0+w/2,cy:y,r:4.5,fill:d.keep?Y:'none',stroke:d.keep?Y:P,'stroke-width':1.8}));
+ });
+ document.getElementById('stair').setAttribute('d',p);
+ document.getElementById('vinl').setAttribute('d','M30 '+yy(vi)+'H362');
+ document.getElementById('vinlab').setAttribute('y',yy(vi)-5);
+}
+function soc(){code=0;k=0;H=[];active=true;done=false;draw()}
+function clock(){
+ if(!active){return false}
+ var tr=trial(),keep=vin()>=tr*LSB;
+ H.push({vd:tr*LSB,keep:keep});
+ if(keep)code=tr;
+ k++;
+ if(k==4){active=false;done=true}
+ draw();
+ return active;
+}
+function stop(){if(T){clearInterval(T);T=null}document.getElementById('run').textContent='Run'}
+function reset(){stop();active=false;done=false;code=0;k=0;H=[];draw()}
+document.getElementById('socb').onclick=function(){stop();soc()};
+document.getElementById('clkb').onclick=function(){stop();if(!active){document.getElementById('stat').textContent='Press SOC first, then clock.';return}clock()};
+document.getElementById('run').onclick=function(){
+ if(T){stop();return}
+ if(!active)soc();
+ this.textContent='Pause';
+ T=setInterval(function(){if(!clock())stop()},800);
+};
+document.getElementById('vin').oninput=reset;
+draw();
+</script>
+</body>
+</html>
