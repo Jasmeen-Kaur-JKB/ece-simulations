@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Counter ADC – chalkboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;500&display=swap" rel="stylesheet">
+<style>
+html,body{margin:0;background:#2b2b2b}
+body{display:flex;justify-content:center;padding:12px}
+#b{width:100%;max-width:560px;box-sizing:border-box;background:#1e2b25;border:8px solid #8a6a43;border-radius:8px;padding:10px 8px 14px;font-family:'Caveat','Comic Sans MS',cursive;color:#f2f0e6}
+#b svg{display:block}
+#b svg text{font-family:'Caveat','Comic Sans MS',cursive;fill:#f2f0e6;font-size:15px}
+#b .w{stroke:#f2f0e6;stroke-width:1.6;fill:none;stroke-linecap:round;stroke-linejoin:round}
+#b .bx{stroke:#f2f0e6;stroke-width:1.6;fill:#1e2b25}
+#b button{font-family:inherit;font-size:19px;color:#f2f0e6;background:transparent;border:1.5px solid #f2f0e6;border-radius:6px;padding:2px 14px;min-height:42px;cursor:pointer}
+#b button:active{background:#33463d}
+#b input[type=range]{flex:1;accent-color:#f4a9b8}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+</style>
+</head>
+<body>
+<div id="b">
+<svg width="100%" viewBox="0 0 380 262" role="img">
+<title>Counter ADC block diagram</title><desc>Clock through AND gate to binary counter, counter drives DAC, comparator compares DAC output to analog input and feeds back to the AND gate.</desc>
+<text x="60" y="15" style="font-size:14px">Reset</text>
+<path class="w" d="M98 10H190V20"/>
+<text x="8" y="29">Clock</text>
+<path class="w" d="M8 35H70"/>
+<path id="fb" class="w" d="M50 182H30V55H70"/>
+<path class="w" d="M70 25H85A20 20 0 0 1 85 65H70Z"/>
+<path id="aout" class="w" d="M105 45H150"/>
+<rect class="bx" x="150" y="20" width="110" height="55" rx="3"/>
+<text x="205" y="41" text-anchor="middle">Binary counter</text>
+<text id="ntxt" x="205" y="64" text-anchor="middle" style="fill:#f4d35e">n = 0</text>
+<g id="bits"></g>
+<rect class="bx" x="150" y="150" width="110" height="48" rx="3"/>
+<text x="205" y="170" text-anchor="middle">DAC</text>
+<text id="vdtxt" x="205" y="190" text-anchor="middle" style="fill:#8ecae6">Vd = 0.0 V</text>
+<path class="w" d="M150 163H115"/>
+<path class="w" d="M115 150V215L50 182Z"/>
+<text x="102" y="168" style="font-size:16px">−</text>
+<text x="102" y="212" style="font-size:16px">+</text>
+<text x="46" y="143" style="font-size:14px">Comparator</text>
+<path class="w" d="M115 203H138V240H18"/>
+<circle cx="18" cy="240" r="3" class="w"/>
+<text x="26" y="256">Analog input Vin = <tspan id="vintxt">3.2</tspan> V</text>
+<text id="xtxt" x="36" y="105" style="fill:#8ecae6;font-size:14px">X = 1 for Vin &gt; Vd</text>
+<text x="272" y="158" style="font-size:14px">Digital</text>
+<text x="272" y="173" style="font-size:14px">output</text>
+<text x="326" y="96" style="font-size:13px">MSB</text>
+<text x="326" y="135" style="font-size:13px">LSB</text>
+</svg>
+<svg width="100%" viewBox="0 0 380 122" role="img" style="margin-top:6px">
+<title>Staircase ramp of Vd against Vin</title><desc>Vd rises one step per clock until it reaches the dashed Vin line.</desc>
+<path class="w" d="M30 6V100H362"/>
+<text x="34" y="14" style="font-size:13px;fill:#8ecae6">Vd</text>
+<text x="300" y="116" style="font-size:13px">clock pulses →</text>
+<path id="vinl" d="M30 50H362" stroke="#f4a9b8" stroke-width="1.5" stroke-dasharray="5 4" fill="none"/>
+<text id="vinlab" x="330" y="44" style="font-size:13px;fill:#f4a9b8">Vin</text>
+<path id="stair" d="" stroke="#8ecae6" stroke-width="2" fill="none" stroke-linejoin="round"/>
+</svg>
+<div style="font-size:20px;margin:4px 4px 8px"><span id="code" style="color:#f4d35e">0000</span> = <span id="dec">0</span> · <span id="stat">Ready</span></div>
+<div class="row" style="margin:0 4px 8px"><span style="font-size:19px">Vin</span><input type="range" id="vin" min="0" max="7.5" step="0.1" value="3.2" aria-label="Analog input voltage"></div>
+<div class="row" style="margin:0 4px">
+<button id="run">Run</button><button id="step">Step</button><button id="rst">Reset</button>
+</div>
+</div>
+<script>
+var N=0,H=[0],T=null,LSB=0.5;
+var Y='#f4d35e',C='#f2f0e6';
+var g=document.getElementById('bits'),ns='http://www.w3.org/2000/svg',bl=[];
+for(var i=3;i>=0;i--){
+ var x=175+(3-i)*20,y=92+(3-i)*13;
+ var v=document.createElementNS(ns,'path');v.setAttribute('d','M'+x+' 75V150');v.setAttribute('class','w');g.appendChild(v);
+ var h=document.createElementNS(ns,'path');h.setAttribute('d','M'+x+' '+y+'H290');h.setAttribute('class','w');g.appendChild(h);
+ var d=document.createElementNS(ns,'circle');d.setAttribute('cx',x);d.setAttribute('cy',y);d.setAttribute('r',2.5);d.setAttribute('fill','#f2f0e6');g.appendChild(d);
+ var t=document.createElementNS(ns,'circle');t.setAttribute('cx',290);t.setAttribute('cy',y);t.setAttribute('r',3.5);t.setAttribute('class','w');g.appendChild(t);
+ var tx=document.createElementNS(ns,'text');tx.setAttribute('x',302);tx.setAttribute('y',y+5);tx.setAttribute('style','font-size:18px');g.appendChild(tx);
+ bl.push({v:v,h:h,t:tx,i:i});
+}
+function vin(){return parseFloat(document.getElementById('vin').value)}
+function draw(){
+ var vi=vin(),vd=N*LSB,X=vi>vd;
+ document.getElementById('ntxt').textContent='n = '+N;
+ document.getElementById('vdtxt').textContent='Vd = '+vd.toFixed(1)+' V';
+ document.getElementById('vintxt').textContent=vi.toFixed(1);
+ var col=X?Y:C;
+ document.getElementById('fb').setAttribute('stroke',col);
+ document.getElementById('aout').setAttribute('stroke',col);
+ var code='';
+ bl.forEach(function(b){var on=(N>>b.i)&1;code+=on;var c=on?Y:C;b.v.setAttribute('stroke',c);b.h.setAttribute('stroke',c);b.t.textContent=on;b.t.style.fill=c});
+ document.getElementById('code').textContent=code;
+ document.getElementById('dec').textContent=N;
+ document.getElementById('xtxt').textContent='X = '+(X?1:0)+' (Vin '+(X?'>':'≤')+' Vd)';
+ document.getElementById('stat').textContent=X?'counting up…':'Vd ≥ Vin: stopped, output = '+code;
+ var yy=function(v){return 100-v*11.5},w=330/16,p='M30 '+yy(H[0]);
+ for(var k=0;k<H.length;k++){var x0=30+k*w;p+=' H'+(x0+w)+(k+1<H.length?' V'+yy(H[k+1]):'')}
+ document.getElementById('stair').setAttribute('d',p);
+ document.getElementById('vinl').setAttribute('d','M30 '+yy(vi)+'H362');
+ document.getElementById('vinlab').setAttribute('y',yy(vi)-5);
+ return X;
+}
+function tick(){
+ if(vin()>N*LSB&&N<15){N++;H.push(N*LSB)}
+ if(!draw())stop();
+}
+function stop(){if(T){clearInterval(T);T=null}document.getElementById('run').textContent='Run'}
+function reset(){N=0;H=[0];draw()}
+document.getElementById('run').onclick=function(){
+ if(T){stop();return}
+ if(!draw())reset();
+ this.textContent='Pause';T=setInterval(tick,450);
+};
+document.getElementById('step').onclick=function(){stop();tick()};
+document.getElementById('rst').onclick=function(){stop();reset()};
+document.getElementById('vin').oninput=function(){reset()};
+draw();
+</script>
+</body>
+</html>
