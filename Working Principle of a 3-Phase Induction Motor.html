@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Working Principle of a 3-Phase Induction Motor</title>
+<style>
+:root{--bg:#f3f5f7;--panel:#fff;--ink:#16222e;--mute:#5b6b7a;--line:#cfd8e0;--iron:#9aa7b3;--iron2:#c9d2da;--cu:#c9702b;--A:#d93a3a;--B:#2a9d57;--C:#2f6fd6;--accent:#0f6b7a;--F:#8a3fd1;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#10171e;--panel:#18222c;--ink:#e6edf3;--mute:#93a4b4;--line:#2b3946;--iron:#56677a;--iron2:#2e3b48;--cu:#e08a45;--A:#ff6b6b;--B:#4cc982;--C:#6aa2ff;--accent:#4fc3d4;--F:#c58cff}}
+:root[data-theme="dark"]{--bg:#10171e;--panel:#18222c;--ink:#e6edf3;--mute:#93a4b4;--line:#2b3946;--iron:#56677a;--iron2:#2e3b48;--cu:#e08a45;--A:#ff6b6b;--B:#4cc982;--C:#6aa2ff;--accent:#4fc3d4;--F:#c58cff}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 Georgia,"Iowan Old Style",serif}
+h1,h2,button,label,.num{font-family:"Trebuchet MS","Segoe UI",system-ui,sans-serif}
+main{max-width:1060px;margin:0 auto;padding:20px 16px 40px}
+h1{font-size:1.6rem;margin:0 0 4px}
+.sub{color:var(--mute);margin:0 0 16px;max-width:64ch}
+.grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:16px}
+@media(max-width:820px){.grid{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px}
+canvas{width:100%;height:auto;display:block}
+button{font-size:.9rem;padding:7px 12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:6px;cursor:pointer}
+button[aria-pressed="true"]{background:var(--accent);color:#fff;border-color:var(--accent)}
+button:disabled{opacity:.45;cursor:default}
+button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.steps{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.steps button{min-width:38px}
+h2{font-size:1.2rem;margin:0 0 6px}
+.eq{background:var(--bg);border-left:3px solid var(--accent);padding:8px 10px;margin:10px 0;font-size:.95rem}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+.lab{display:flex;justify-content:space-between;font-size:.85rem;color:var(--mute);font-family:"Trebuchet MS",system-ui,sans-serif}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.read{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:10px 0}
+.read div{background:var(--bg);border-radius:8px;padding:6px 9px}
+.read span{display:block;font-size:.72rem;color:var(--mute);font-family:"Trebuchet MS",system-ui,sans-serif}
+.num{font-weight:700}
+.leg{display:flex;gap:12px;font-size:.8rem;color:var(--mute);font-family:"Trebuchet MS",system-ui,sans-serif;margin-top:6px;flex-wrap:wrap}
+.leg i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px}
+</style></head><body><main>
+<h1>Working principle: from supply to rotor speed N</h1>
+<p class="sub">Seven steps, each with its own animation. Step through them, or press Auto-play to run the whole sequence.</p>
+<div class="grid">
+<div class="card">
+<canvas id="c" width="520" height="520" aria-label="Working principle animation"></canvas>
+<canvas id="w" width="520" height="110" aria-label="Three-phase currents" style="margin-top:6px"></canvas>
+<div class="leg"><span><i style="background:var(--A)"></i>Phase A</span><span><i style="background:var(--B)"></i>Phase B</span><span><i style="background:var(--C)"></i>Phase C</span><span>● out of page &nbsp; ✕ into page</span></div>
+</div>
+<div>
+<div class="card">
+<div class="steps" id="sb" role="group" aria-label="Steps"></div>
+<h2 id="tt"></h2><div id="tx"></div><div class="eq" id="eq"></div>
+<div class="read"><div><span>Field speed Ns</span><b class="num" id="ns"></b></div><div><span>Rotor speed N</span><b class="num" id="nr">0 rpm</b></div><div><span>Slip</span><b class="num" id="sl"></b></div></div>
+<div class="row"><button id="prev">Back</button><button id="next">Next step</button><button id="auto" aria-pressed="false">Auto-play</button><button id="replay">Restart</button></div>
+<div class="lab"><span>Slow motion</span><span id="tv"></span></div><input id="t" type="range" min="20" max="120" value="60">
+<div class="lab" style="margin-top:8px"><span>Load (final slip)</span><span id="sv"></span></div><input id="s" type="range" min="10" max="100" value="40">
+</div></div></div>
+</main>
+<script>
+const $=id=>document.getElementById(id),cv=$('c'),g=cv.getContext('2d'),wg=$('w').getContext('2d');
+const TAU=Math.PI*2,cx=260,cy=260,F=50;
+const ST=[
+['Three-phase supply goes to the stator','A three-phase AC supply is connected to the stator windings, which sit in the stator slots. The three windings are 120° apart, and their currents reach their peaks one after another (graph below). Each dot or cross shows the current direction and size in that slot right now.','i<sub>A</sub> = I<sub>m</sub> sin ωt, i<sub>B</sub> = I<sub>m</sub> sin(ωt − 120°), i<sub>C</sub> = I<sub>m</sub> sin(ωt − 240°)'],
+['A rotating magnetic field forms','Each winding makes its own magnetic field, and the three add up. As the currents change from instant to instant, the combined N and S poles move around the stator bore without anything physically moving. This is the rotating magnetic field.','Synchronous speed N<sub>s</sub> = 120 f / P &nbsp;(50 Hz, 2 poles: 3000 rpm)'],
+['The field cuts the rotor bars','The squirrel-cage rotor sits inside the bore. At the start it is standing still, so the rotating field sweeps across every bar, and the flux linked with the bars keeps changing.','Relative speed = N<sub>s</sub> − 0 = N<sub>s</sub> (at standstill)'],
+['An EMF is induced in the bars','A changing flux induces an EMF in a conductor (Faraday’s law). Bars under the N pole get one polarity (amber), and bars under the S pole get the opposite one (blue). Brighter means a larger EMF.','e = − dΦ/dt &nbsp;or&nbsp; e = B · l · v<sub>relative</sub>'],
+['Current flows in the rotor','The bars are joined by end rings at both ends, so the circuit is closed and the induced EMF drives current: out of the page in some bars, into the page in others, returning through the end rings. No supply is connected to the rotor. The current is induced, which gives the motor its name.','i<sub>rotor</sub> = e / Z<sub>rotor</sub>'],
+['The current feels a force, so torque','A current-carrying conductor in a magnetic field feels a force. The force arrows (purple) point along the direction of the rotating field for bars under both poles, so they all add up to a turning torque. By Lenz’s law, the rotor tries to reduce the relative motion by following the field.','F = B · I · L &nbsp;→&nbsp; torque T = F × r'],
+['The rotor speeds up to speed N','The rotor accelerates in the direction of the field. As it speeds up, the relative speed falls, so the EMF, current and force shrink. It settles at a speed N a little below N<sub>s</sub>, where torque equals the load. It can never reach N<sub>s</sub>, because then there would be no EMF, no current and no torque.','Slip s = (N<sub>s</sub> − N) / N<sub>s</sub>, so N = N<sub>s</sub>(1 − s)']
+];
+let step=0,ph=0,th=0,wr=0,auto=false,aT=0,last=performance.now();
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+$('sb').innerHTML=ST.map((_,i)=>`<button data-i="${i}" aria-label="Step ${i+1}">${i+1}</button>`).join('');
+function setStep(i){step=Math.max(0,Math.min(6,i));if(step<6)wr=0;if(step===6){wr=0}aT=0;
+document.querySelectorAll('#sb button').forEach((b,k)=>b.setAttribute('aria-pressed',k===step));
+$('tt').textContent=(step+1)+'. '+ST[step][0];$('tx').textContent=ST[step][1];$('eq').innerHTML=ST[step][2];
+$('prev').disabled=step===0;$('next').disabled=step===6;upd()}
+function upd(){const tt=+$('t').value,s=+$('s').value/10;$('tv').textContent='1/'+tt+'×';$('sv').textContent=s.toFixed(1)+' %';$('ns').textContent='3000 rpm';$('sl').textContent=step<6?'100 % (at rest)':(100*(1-wr/(TAU*F/tt))).toFixed(1)+' %';return{tt,s:s/100}}
+document.querySelectorAll('#sb button').forEach(b=>b.onclick=()=>setStep(+b.dataset.i));
+$('prev').onclick=()=>setStep(step-1);$('next').onclick=()=>setStep(step+1);$('replay').onclick=()=>{th=0;wr=0;setStep(0)};
+$('auto').onclick=()=>{auto=!auto;$('auto').setAttribute('aria-pressed',auto);aT=0};
+$('t').oninput=upd;$('s').oninput=upd;
+const pat=['A+','A+','C-','C-','B+','B+','A-','A-','C+','C+','B-','B-'];
+function draw(phi,rel){
+g.clearRect(0,0,520,520);
+const A=css('--A'),B=css('--B'),C=css('--C'),iron=css('--iron'),iron2=css('--iron2'),cu=css('--cu'),ink=css('--ink'),bg=css('--bg'),Fc=css('--F'),panel=css('--panel');
+const cur={A:Math.cos(ph),B:Math.cos(ph-TAU/3),C:Math.cos(ph+TAU/3)},col={A,B,C};
+// stator
+g.beginPath();g.arc(cx,cy,240,0,TAU);g.arc(cx,cy,150,0,TAU,true);g.fillStyle=iron2;g.fill('evenodd');g.strokeStyle=iron;g.lineWidth=1.5;g.stroke();
+for(let i=0;i<12;i++){const a=i*TAU/12+TAU/24-Math.PI/2,r=190,x=cx+r*Math.cos(a),y=cy+r*Math.sin(a);
+g.save();g.translate(x,y);g.rotate(a+Math.PI/2);g.fillStyle=bg;g.fillRect(-12,-34,24,68);g.strokeStyle=iron;g.strokeRect(-12,-34,24,68);g.restore();
+const k=pat[i][0],sg=pat[i][1]==='+'?1:-1,v=sg*cur[k];
+g.beginPath();g.arc(x,y,5+8*Math.abs(v),0,TAU);g.fillStyle=col[k];g.globalAlpha=.25+.75*Math.abs(v);g.fill();g.globalAlpha=1;
+g.strokeStyle='#fff';g.fillStyle='#fff';g.lineWidth=2;
+if(Math.abs(v)>.08){if(v>0){g.beginPath();g.arc(x,y,2.5,0,TAU);g.fill()}else{g.beginPath();g.moveTo(x-4,y-4);g.lineTo(x+4,y+4);g.moveTo(x+4,y-4);g.lineTo(x-4,y+4);g.stroke()}}
+g.fillStyle=ink;g.font='bold 11px sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText(k+(sg>0?'':'′'),cx+222*Math.cos(a),cy+222*Math.sin(a))}
+// rotor body
+const R=136;g.beginPath();g.arc(cx,cy,R,0,TAU);g.fillStyle=step>=2?iron2:'transparent';g.fill();g.setLineDash(step>=2?[]:[5,5]);g.strokeStyle=iron;g.lineWidth=2;g.stroke();g.setLineDash([]);
+if(step<2){g.fillStyle=css('--mute');g.font='13px sans-serif';g.textAlign='center';g.fillText('rotor (not yet involved)',cx,cy+4)}
+// field
+if(step>=1){
+if(step>=2){g.strokeStyle=ink;g.globalAlpha=.4;g.lineWidth=1.6;const dx=Math.cos(phi),dy=Math.sin(phi),px=-dy,py=dx;
+for(let o=-100;o<=100;o+=50){const h=Math.sqrt(Math.max(0,148*148-o*o));g.beginPath();g.moveTo(cx+o*px-h*dx,cy+o*py-h*dy);g.lineTo(cx+o*px+h*dx,cy+o*py+h*dy);g.stroke();
+const hx=cx+o*px+(h-6)*dx,hy=cy+o*py+(h-6)*dy;g.beginPath();g.moveTo(hx+8*dx,hy+8*dy);g.lineTo(hx-3*dx+6*px,hy-3*dy+6*py);g.lineTo(hx-3*dx-6*px,hy-3*dy-6*py);g.fillStyle=ink;g.fill()}g.globalAlpha=1}
+for(let k=0;k<2;k++){const a=phi+k*Math.PI;g.beginPath();g.arc(cx,cy,150,a-.55,a+.55);g.lineWidth=10;g.strokeStyle=k?'#2f6fd6':'#d93a3a';g.lineCap='round';g.stroke();g.lineCap='butt';
+g.fillStyle='#fff';g.font='bold 14px sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText(k?'S':'N',cx+158*Math.cos(a),cy+158*Math.sin(a))}}
+// bars
+if(step>=2){const N=16;
+for(let k=0;k<N;k++){const al=th+k*TAU/N,r=R*.8,x=cx+r*Math.cos(al),y=cy+r*Math.sin(al);
+const e=Math.sin(phi-al),amp=(.15+.85*rel),m=Math.abs(e)*amp;
+g.beginPath();g.arc(x,y,9,0,TAU);g.fillStyle=cu;g.globalAlpha=.4;g.fill();g.globalAlpha=1;g.strokeStyle=cu;g.lineWidth=2;g.stroke();
+if(step>=3){g.beginPath();g.arc(x,y,3+7*m,0,TAU);g.fillStyle=e>0?'#ffb347':'#6aa2ff';g.globalAlpha=.3+.7*m;g.fill();g.globalAlpha=1;
+if(step>=4&&m>.1){g.strokeStyle='#fff';g.fillStyle='#fff';g.lineWidth=1.8;if(e>0){g.beginPath();g.arc(x,y,1.8,0,TAU);g.fill()}else{g.beginPath();g.moveTo(x-3,y-3);g.lineTo(x+3,y+3);g.moveTo(x+3,y-3);g.lineTo(x-3,y+3);g.stroke()}}}
+if(step>=5&&m>.08){const tx=-Math.sin(al),ty=Math.cos(al),L=14+46*m,x1=x+tx*L,y1=y+ty*L;g.strokeStyle=Fc;g.fillStyle=Fc;g.lineWidth=3.5;g.beginPath();g.moveTo(x,y);g.lineTo(x1,y1);g.stroke();
+g.beginPath();g.moveTo(x1+tx*8,y1+ty*8);g.lineTo(x1-ty*5,y1+tx*5);g.lineTo(x1+ty*5,y1-tx*5);g.fill()}}
+if(step>=4){g.setLineDash([3,5]);g.strokeStyle=cu;g.lineWidth=2;g.beginPath();g.arc(cx,cy,R*.8,0,TAU);g.stroke();g.setLineDash([])}
+g.beginPath();g.arc(cx,cy,26,0,TAU);g.fillStyle=panel;g.fill();g.strokeStyle=iron;g.lineWidth=2;g.stroke();
+g.save();g.translate(cx,cy);g.rotate(th);g.fillStyle=iron;g.fillRect(-4,-28,8,10);g.restore()}
+// field arrow
+if(step>=1){const dx=Math.cos(phi),dy=Math.sin(phi);g.strokeStyle=ink;g.fillStyle=ink;g.lineWidth=3;g.beginPath();g.moveTo(cx,cy);g.lineTo(cx+60*dx,cy+60*dy);g.stroke();g.beginPath();g.moveTo(cx+72*dx,cy+72*dy);g.lineTo(cx+56*dx-6*dy,cy+56*dy+6*dx);g.lineTo(cx+56*dx+6*dy,cy+56*dy-6*dx);g.fill()}
+// caption
+g.fillStyle=ink;g.font='bold 13px sans-serif';g.textAlign='left';g.textBaseline='top';
+const cap=['Currents in the slots','Field rotating at Ns','Rotor at rest, field sweeping past','Induced EMF in each bar','Induced current in each bar','Force on each bar','Rotor turning at N < Ns'][step];
+g.fillText('Step '+(step+1)+': '+cap,10,8)}
+function wave(){const W=520,H=110;wg.clearRect(0,0,W,H);wg.strokeStyle=css('--line');wg.beginPath();wg.moveTo(0,H/2);wg.lineTo(W,H/2);wg.stroke();
+[['--A',0],['--B',-TAU/3],['--C',TAU/3]].forEach(([c,o])=>{wg.strokeStyle=css(c);wg.lineWidth=2;wg.beginPath();for(let x=0;x<=W;x++){const a=x/W*TAU,y=H/2-Math.cos(a+o)*38;x?wg.lineTo(x,y):wg.moveTo(x,y)}wg.stroke();
+const a=ph%TAU;wg.fillStyle=css(c);wg.beginPath();wg.arc(a/TAU*W,H/2-Math.cos(a+o)*38,5,0,TAU);wg.fill()});
+const x=(ph%TAU)/TAU*W;wg.strokeStyle=css('--mute');wg.setLineDash([4,4]);wg.beginPath();wg.moveTo(x,4);wg.lineTo(x,H-4);wg.stroke();wg.setLineDash([])}
+function loop(now){const dt=Math.min(.05,(now-last)/1000);last=now;const S=upd(),wf=TAU*F/S.tt;
+ph+=wf*dt;
+if(step===6){wr+=((1-S.s)*wf-wr)*Math.min(1,dt*.7)}
+th+=wr*dt;const rel=step===6?Math.max(0,(wf-wr)/wf):1;
+draw(ph,rel);wave();
+if(step===6)$('nr').textContent=(3000*wr/wf).toFixed(0)+' rpm';else $('nr').textContent='0 rpm';
+if(auto){aT+=dt;if(aT>(step===6?9:7)){step===6?(th=0,wr=0,setStep(0)):setStep(step+1)}}
+requestAnimationFrame(loop)}
+setStep(0);requestAnimationFrame(loop);
+</script></body></html>
