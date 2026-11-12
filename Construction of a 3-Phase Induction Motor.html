@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Construction of a 3-Phase Induction Motor: Stator and Rotor</title>
+<style>
+:root{--bg:#f3f5f7;--panel:#fff;--ink:#16222e;--mute:#5b6b7a;--line:#cfd8e0;--iron:#aab6c1;--iron2:#c9d2da;--frame:#74869a;--cu:#c9702b;--A:#d93a3a;--B:#2a9d57;--C:#2f6fd6;--accent:#0f6b7a;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#10171e;--panel:#18222c;--ink:#e6edf3;--mute:#93a4b4;--line:#2b3946;--iron:#62758a;--iron2:#33424f;--frame:#3d4d5e;--cu:#e08a45;--A:#ff6b6b;--B:#4cc982;--C:#6aa2ff;--accent:#4fc3d4}}
+:root[data-theme="dark"]{--bg:#10171e;--panel:#18222c;--ink:#e6edf3;--mute:#93a4b4;--line:#2b3946;--iron:#62758a;--iron2:#33424f;--frame:#3d4d5e;--cu:#e08a45;--A:#ff6b6b;--B:#4cc982;--C:#6aa2ff;--accent:#4fc3d4}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 Georgia,"Iowan Old Style",serif}
+h1,h2,h3,button,th{font-family:"Trebuchet MS","Segoe UI",system-ui,sans-serif}
+main{max-width:1060px;margin:0 auto;padding:20px 16px 40px}
+h1{font-size:1.6rem;margin:0 0 4px}
+.sub{color:var(--mute);margin:0 0 16px;max-width:64ch}
+.grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:16px}
+@media(max-width:820px){.grid{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px}
+.tabs,.row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+button{font-size:.88rem;padding:7px 11px;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:6px;cursor:pointer}
+button[aria-pressed="true"]{background:var(--accent);color:#fff;border-color:var(--accent)}
+button:disabled{opacity:.45;cursor:default}
+button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+svg.main{width:100%;height:auto;display:block}
+.part{cursor:pointer}.part.sel{filter:drop-shadow(0 0 5px var(--accent))}
+.parts{display:flex;flex-direction:column;gap:5px;margin-bottom:12px}
+.parts button{text-align:left;display:flex;gap:8px}
+.parts button span{opacity:.7;min-width:1.2em}
+.parts button[aria-pressed="false"].locked{opacity:.5}
+h2{font-size:1.2rem;margin:0 0 6px}
+.kv{margin:6px 0;font-size:.95rem}.kv b{font-family:"Trebuchet MS",system-ui,sans-serif;color:var(--accent)}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.lab{display:flex;justify-content:space-between;font-size:.85rem;color:var(--mute);font-family:"Trebuchet MS",system-ui,sans-serif}
+table{border-collapse:collapse;width:100%;font-size:.9rem;min-width:520px}
+th,td{border-bottom:1px solid var(--line);padding:7px 8px;text-align:left;vertical-align:top}
+th{color:var(--mute);font-weight:600}
+.wrap{overflow-x:auto;margin-top:16px}
+.leg{display:flex;gap:14px;font-size:.8rem;color:var(--mute);font-family:"Trebuchet MS",system-ui,sans-serif;margin-top:6px;flex-wrap:wrap}
+.leg i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px}
+</style></head><body><main>
+<h1>Construction of a 3-phase induction motor</h1>
+<p class="sub">Build the motor one part at a time. Use the step slider, or tap any part in the drawing or the list to see its material and job.</p>
+<div class="grid">
+<div class="card">
+<div class="tabs" role="group" aria-label="Machine part">
+<button data-t="stator" aria-pressed="true">Stator</button>
+<button data-t="cage" aria-pressed="false">Squirrel-cage rotor</button>
+<button data-t="wound" aria-pressed="false">Wound (slip-ring) rotor</button>
+</div>
+<svg id="svg" class="main" role="img" aria-label="Construction drawing"></svg>
+<div class="leg" id="leg"></div>
+<div style="margin-top:10px"><div class="lab"><span>Build step</span><span id="sv"></span></div>
+<input id="step" type="range" min="1" max="5" value="1"></div>
+</div>
+<div>
+<div class="card parts" id="plist" role="group" aria-label="Parts list"></div>
+<div class="card" id="info"></div>
+</div></div>
+<div class="wrap card">
+<table><thead><tr><th>Feature</th><th>Squirrel-cage rotor</th><th>Wound (slip-ring) rotor</th></tr></thead><tbody>
+<tr><td>Winding</td><td>Aluminium or copper bars shorted by end rings</td><td>Insulated 3-phase winding, usually star-connected</td></tr>
+<tr><td>Slip rings and brushes</td><td>None</td><td>Three slip rings and carbon brushes</td></tr>
+<tr><td>Starting torque</td><td>Fixed by the bar design, moderate</td><td>High, by adding external resistance</td></tr>
+<tr><td>Maintenance</td><td>Very low</td><td>Brushes and rings wear</td></tr>
+<tr><td>Cost and typical use</td><td>Cheapest; fans, pumps, conveyors</td><td>Costlier; cranes, hoists, mills</td></tr>
+</tbody></table></div>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const S=s=>`style="${s}"`;
+const lamSVG='<svg viewBox="0 0 220 64" style="width:100%;max-width:300px;display:block;margin-top:8px" role="img" aria-label="Stack of insulated laminations">'+Array.from({length:14},(_,i)=>`<rect x="${10+i*8}" y="8" width="6" height="40" style="fill:var(--iron)"/>`).join('')+'<text x="10" y="60" font-size="10" style="fill:var(--mute)">Thin plates, each insulated, stacked together</text></svg>';
+// ---------- stator ----------
+const pat=['A','C','B','A','C','B'],ph={A:'var(--A)',B:'var(--B)',C:'var(--C)'};
+const slots=f=>Array.from({length:24},(_,i)=>`<g transform="rotate(${i*15+7.5} 260 260)">${f(i)}</g>`).join('');
+const stator=[
+{n:'Frame (yoke)',mat:'Cast iron, fabricated steel, or aluminium in small motors.',role:'Holds the core, protects the windings, and carries the end shields and bearings. External fins and the feet shed heat and mount the motor.',
+svg:`<circle cx="260" cy="260" r="197.5" fill="none" stroke-width="25" ${S('stroke:var(--frame)')}/>`+Array.from({length:48},(_,i)=>`<line x1="260" y1="38" x2="260" y2="26" transform="rotate(${i*7.5} 260 260)" stroke-width="3" ${S('stroke:var(--frame)')}/>`).join('')+`<rect x="110" y="462" width="90" height="20" ${S('fill:var(--frame)')}/><rect x="320" y="462" width="90" height="20" ${S('fill:var(--frame)')}/>`},
+{n:'Laminated stator core',mat:'Thin silicon-steel laminations, about 0.35 to 0.5 mm, each coated with insulating varnish and pressed into the frame.',role:'Gives the magnetic flux an easy path. Lamination cuts eddy-current loss, and silicon steel cuts hysteresis loss. The inner edge carries evenly spaced slots (24 here) that hold the winding.',lam:1,
+svg:`<circle cx="260" cy="260" r="145" fill="none" stroke-width="80" ${S('stroke:var(--iron)')}/>`+slots(()=>`<rect x="253" y="90" width="14" height="45" ${S('fill:var(--panel)')}/>`)},
+{n:'Slot insulation',mat:'Polyester film, press-board or Nomex liners, plus wedges at the slot opening.',role:'Keeps the copper electrically separate from the iron core and holds the coil sides in the slot.',
+svg:slots(()=>`<rect x="252" y="89" width="16" height="47" fill="none" stroke-width="2" style="stroke:#d9b53a"/>`)},
+{n:'Three-phase winding',mat:'Enamelled copper wire formed into coils.',role:'Three identical windings (A, B and C) sit 120° apart electrically. Fed by three-phase supply, they create a rotating magnetic field. The winding layout fixes the number of poles, and ends can be connected in star or delta.',
+svg:slots(i=>`<rect x="255" y="92" width="10" height="19" ${S('fill:'+ph[pat[Math.floor(i/4)]])}/><rect x="255" y="114" width="10" height="19" ${S('fill:'+ph[pat[Math.floor(((i+1)%24)/4)]])}/>`)},
+{n:'Terminal box',mat:'Cast housing with six terminals.',role:'Brings the supply cable in. Six terminals (U1 V1 W1, U2 V2 W2) let you link the windings in star or delta to suit the supply voltage.',
+svg:`<rect x="205" y="8" width="110" height="42" rx="4" ${S('fill:var(--frame)')}/>`+['U1','V1','W1','W2','U2','V2'].map((t,i)=>`<circle cx="${222+i*15}" cy="22" r="4.5" fill="#d9b53a"/><text x="${222+i*15}" y="42" font-size="8" text-anchor="middle" fill="#fff">${t}</text>`).join('')}
+];
+// ---------- rotor side views ----------
+const shaft=`<rect x="30" y="155" width="475" height="30" ${S('fill:var(--frame)')}/><rect x="40" y="140" width="20" height="60" rx="3" ${S('fill:var(--iron2);stroke:var(--frame)')} stroke-width="2"/><rect x="470" y="140" width="20" height="60" rx="3" ${S('fill:var(--iron2);stroke:var(--frame)')} stroke-width="2"/>`;
+const core=`<rect x="120" y="90" width="280" height="160" ${S('fill:var(--iron)')}/>`+Array.from({length:39},(_,i)=>`<line x1="${127+i*7}" y1="90" x2="${127+i*7}" y2="250" stroke-width="1" ${S('stroke:var(--panel);opacity:.55')}/>`).join('')+`<rect x="120" y="90" width="280" height="160" fill="none" stroke-width="2" ${S('stroke:var(--frame)')}/>`;
+const fan=`<rect x="70" y="150" width="32" height="40" ${S('fill:var(--frame)')}/>`+Array.from({length:6},(_,i)=>`<polygon points="72,${100+i*24} 100,${108+i*24} 100,${116+i*24} 72,${108+i*24}" ${S('fill:var(--iron2);stroke:var(--frame)')}/>`).join('');
+const Y=i=>100+i*17.5;
+const cage=[
+{n:'Shaft and bearings',mat:'Medium-carbon steel shaft in ball or roller bearings.',role:'Carries the rotor core and delivers torque to the load. The bearings hold the rotor centred so the air gap stays small and even.',svg:shaft},
+{n:'Laminated rotor core',mat:'Silicon-steel laminations pressed on the shaft and keyed.',role:'Completes the magnetic circuit. The outer edge has slots for the bars, usually semi-closed so bars stay in place.',lam:1,svg:core},
+{n:'Rotor bars',mat:'Die-cast aluminium in small and medium motors, copper bars in large ones.',role:'Current is induced in these bars by the stator field. The bars are skewed about one slot pitch, which reduces noise, torque ripple and magnetic locking at start.',
+svg:Array.from({length:9},(_,i)=>`<line x1="120" y1="${Y(i)}" x2="400" y2="${Y(i)+12}" stroke-width="6" ${S('stroke:var(--cu)')}/>`).join('')},
+{n:'End rings',mat:'Same metal as the bars, cast or brazed to them.',role:'Short-circuit the bars at both ends. Bars plus rings look like a squirrel cage, so the rotor needs no outside connection.',
+svg:`<rect x="106" y="86" width="16" height="168" rx="6" ${S('fill:var(--cu)')}/><rect x="398" y="86" width="16" height="168" rx="6" ${S('fill:var(--cu)')}/>`},
+{n:'Cooling fan',mat:'Aluminium or plastic blades fixed to the shaft.',role:'Blows air over the frame fins to carry away the heat from losses in the windings and core.',svg:fan}
+];
+const wcoil=Array.from({length:9},(_,i)=>`<path d="M104 ${Y(i)} L416 ${Y(i)+12}" stroke-width="5" fill="none" ${S('stroke:'+ph[['A','B','C'][i%3]])}/>`).join('');
+const wound=[
+{n:'Shaft and bearings',mat:'Medium-carbon steel shaft in ball or roller bearings.',role:'Carries the rotor and delivers torque. It also carries the slip rings at one end.',svg:shaft},
+{n:'Laminated rotor core',mat:'Silicon-steel laminations pressed on the shaft and keyed.',role:'Completes the magnetic circuit. Its slots hold an insulated winding.',lam:1,svg:core},
+{n:'Rotor winding',mat:'Insulated copper coils in the slots.',role:'A three-phase winding wound for the same number of poles as the stator. Its three ends join in a star point, and the other three go to the slip rings.',svg:wcoil+`<line x1="416" y1="160" x2="420" y2="160" /> `+['A','B','C'].map((c,i)=>`<path d="M412 ${Y(i)+12} L${424+i*14} 160" fill="none" stroke-width="2" ${S('stroke:'+ph[c])}/>`).join('')},
+{n:'Slip rings',mat:'Brass or bronze rings, insulated from the shaft.',role:'Each ring connects to one rotor phase. They let current pass between the rotating winding and stationary resistors outside.',
+svg:['A','B','C'].map((c,i)=>`<rect x="${420+i*14}" y="128" width="10" height="64" rx="2" ${S('fill:var(--frame);stroke:'+ph[c])} stroke-width="3"/>`).join('')},
+{n:'Brushes and external resistance',mat:'Carbon brushes held on the rings by springs.',role:'Carry rotor current to external resistors. High resistance at start gives high starting torque and low starting current, then is cut out as the motor speeds up.',
+svg:['A','B','C'].map((c,i)=>`<rect x="${421+i*14}" y="96" width="8" height="32" ${S('fill:#2b2f33')}/><line x1="${425+i*14}" y1="96" x2="${425+i*14}" y2="70" stroke-width="2" ${S('stroke:var(--mute)')}/>`).join('')+`<path d="M420 70 h56 l4 6 l-8 6 l8 6 l-8 6 l8 6 l-8 6 l8 6" fill="none" stroke-width="2" ${S('stroke:var(--mute)')}/>`}
+];
+const T={stator:{vb:'0 0 520 500',parts:stator,leg:'<span><i style="background:var(--A)"></i>Phase A</span><span><i style="background:var(--B)"></i>Phase B</span><span><i style="background:var(--C)"></i>Phase C</span><span>End view of stator</span>'},
+cage:{vb:'0 0 520 340',parts:cage,leg:'<span>Side view of squirrel-cage rotor</span>'},
+wound:{vb:'0 0 520 340',parts:wound,leg:'<span><i style="background:var(--A)"></i>Phase A</span><span><i style="background:var(--B)"></i>Phase B</span><span><i style="background:var(--C)"></i>Phase C</span><span>Side view of wound rotor</span>'}};
+let tab='stator',step=1,sel=0;
+function render(){const d=T[tab],n=d.parts.length;sel=Math.min(sel,step-1);
+$('step').max=n;$('step').value=step;$('sv').textContent=step+' of '+n+': '+d.parts[step-1].n;
+const sv=$('svg');sv.setAttribute('viewBox',d.vb);
+sv.innerHTML=d.parts.map((p,i)=>i<step?`<g class="part${i===sel?' sel':''}" data-i="${i}"><title>${p.n}</title>${p.svg}</g>`:'').join('');
+sv.querySelectorAll('.part').forEach(g=>g.onclick=()=>{sel=+g.dataset.i;render()});
+$('leg').innerHTML=d.leg;
+$('plist').innerHTML=d.parts.map((p,i)=>`<button data-i="${i}" aria-pressed="${i===sel}" class="${i<step?'':'locked'}"><span>${i+1}</span>${p.n}</button>`).join('');
+$('plist').querySelectorAll('button').forEach(b=>b.onclick=()=>{const i=+b.dataset.i;if(i>=step)step=i+1;sel=i;render()});
+const p=d.parts[sel];$('info').innerHTML=`<h2>${p.n}</h2><div class="kv"><b>Material.</b> ${p.mat}</div><div class="kv"><b>Role.</b> ${p.role}</div>`+(p.lam?`<div class="kv"><b>Why laminated?</b> A solid iron block would carry large circulating eddy currents and waste power as heat. Thin insulated plates break those loops.</div>${lamSVG}`:'')}
+document.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{tab=b.dataset.t;step=1;sel=0;document.querySelectorAll('[data-t]').forEach(x=>x.setAttribute('aria-pressed',x===b));render()});
+$('step').oninput=e=>{step=+e.target.value;sel=step-1;render()};
+render();
+</script></body></html>
