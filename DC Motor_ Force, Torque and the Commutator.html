@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>DC Motor: Force, Torque and the Commutator</title>
+<style>
+:root{--bg:#f3f5f7;--panel:#fff;--ink:#16222e;--mute:#5b6b7a;--line:#cfd8e0;--iron:#9aa7b3;--iron2:#c9d2da;--N:#d93a3a;--S:#2f6fd6;--F:#1f9d55;--I:#d6336c;--A:#e07b1a;--B:#2a9d57;--accent:#0f6b7a;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#10171e;--panel:#18222c;--ink:#e6edf3;--mute:#93a4b4;--line:#2b3946;--iron:#56677a;--iron2:#2e3b48;--N:#ff6b6b;--S:#6aa2ff;--F:#4cc982;--I:#f58fb4;--A:#f0a04b;--B:#4cc982;--accent:#4fc3d4}}
+:root[data-theme="dark"]{--bg:#10171e;--panel:#18222c;--ink:#e6edf3;--mute:#93a4b4;--line:#2b3946;--iron:#56677a;--iron2:#2e3b48;--N:#ff6b6b;--S:#6aa2ff;--F:#4cc982;--I:#f58fb4;--A:#f0a04b;--B:#4cc982;--accent:#4fc3d4}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 Georgia,"Iowan Old Style",serif}
+h1,h2,button,label,.num{font-family:"Trebuchet MS","Segoe UI",system-ui,sans-serif}
+main{max-width:1080px;margin:0 auto;padding:20px 16px 40px}
+h1{font-size:1.6rem;margin:0 0 4px}
+.sub{color:var(--mute);margin:0 0 16px;max-width:68ch}
+.grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:16px}
+@media(max-width:840px){.grid{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:16px}
+canvas{width:100%;height:auto;display:block}
+button{font-size:.88rem;padding:7px 12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:6px;cursor:pointer}
+button[aria-pressed="true"]{background:var(--accent);color:#fff;border-color:var(--accent)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.row{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 10px}
+.lab{display:flex;justify-content:space-between;font-size:.84rem;color:var(--mute);font-family:"Trebuchet MS",system-ui,sans-serif;margin-top:8px}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.read{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}
+.read div{background:var(--bg);border-radius:8px;padding:6px 10px}
+.read span{display:block;font-size:.72rem;color:var(--mute);font-family:"Trebuchet MS",system-ui,sans-serif}
+.num{font-weight:700;font-size:.98rem}
+.status{border-left:4px solid var(--accent);background:var(--bg);padding:9px 11px;font-size:.95rem;min-height:5.2em}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+ol{margin:6px 0 0 1.1em;padding:0}li{margin:4px 0}
+h2{font-size:1.05rem;margin:0 0 6px}
+.leg{display:flex;gap:12px;font-size:.8rem;color:var(--mute);font-family:"Trebuchet MS",system-ui,sans-serif;margin-top:6px;flex-wrap:wrap}
+.leg i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px}
+</style></head><body><main>
+<h1>DC motor: force, torque and the commutator</h1>
+<p class="sub">A coil carries current in a magnetic field. The two sides carry opposite currents, so they feel opposite forces. Switch the commutator on and off to see why it is needed.</p>
+<div class="grid">
+<div>
+<div class="card">
+<canvas id="m" width="560" height="430" aria-label="Coil rotating in a magnetic field"></canvas>
+<div class="leg"><span><i style="background:var(--F)"></i>Force F = B I L</span><span><i style="background:var(--I)"></i>Current (dot = out, cross = in)</span><span><i style="background:var(--A)"></i>Side A</span><span><i style="background:var(--B)"></i>Side B</span></div>
+</div>
+<div class="card two">
+<div><canvas id="c" width="270" height="200" aria-label="Commutator and brushes"></canvas></div>
+<div><canvas id="t" width="270" height="200" aria-label="Torque against angle"></canvas></div>
+</div>
+</div>
+<div>
+<div class="card">
+<div class="row"><button data-md="on" aria-pressed="true">With commutator</button><button data-md="off" aria-pressed="false">Without (no reversal)</button></div>
+<div class="row"><button id="play" aria-pressed="true">Pause</button><button id="reset">Reset</button></div>
+<div class="lab"><span>Coil angle (drag to inspect)</span><span id="av"></span></div><input id="a" type="range" min="0" max="359" value="200">
+<div class="lab"><span>Armature current I</span><span id="iv"></span></div><input id="i" type="range" min="20" max="100" value="80">
+<div class="lab"><span>Field strength B</span><span id="bv"></span></div><input id="b" type="range" min="20" max="100" value="80">
+<div class="lab"><span>Friction (load)</span><span id="fv"></span></div><input id="f" type="range" min="30" max="250" value="120">
+<div class="read">
+<div><span>Side A: current, force</span><b class="num" id="ra"></b></div><div><span>Side B: current, force</span><b class="num" id="rb"></b></div>
+<div><span>Torque (relative)</span><b class="num" id="rt"></b></div><div><span>Speed</span><b class="num" id="rs"></b></div>
+</div>
+<div class="status" id="st"></div>
+</div>
+<div class="card"><h2>What to notice</h2><ol>
+<li>A current-carrying conductor in a field feels a force F = B I L.</li>
+<li>The two coil sides carry opposite currents, so one force points up and the other down. Together they make a torque.</li>
+<li>When the coil is square-on to the field (the neutral plane), the forces point along the coil and the torque is zero.</li>
+<li>Past that point, a fixed current would reverse the torque. The commutator reverses the current at the neutral plane, so the torque keeps its direction.</li>
+</ol></div>
+</div></div>
+</main>
+<script>
+const $=id=>document.getElementById(id),mg=$('m').getContext('2d'),cg=$('c').getContext('2d'),tg=$('t').getContext('2d');
+const TAU=Math.PI*2,D=Math.PI/180;
+let th=200*D,w=0,mode='on',playing=true,flash=0,lastS=1,last=performance.now();
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const sgnA=()=>mode==='on'?(Math.cos(th)<0?1:-1):1;
+function setMode(m){mode=m;document.querySelectorAll('[data-md]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.md===m));reset()}
+function reset(){th=200*D;w=0;flash=0;lastS=sgnA()}
+document.querySelectorAll('[data-md]').forEach(b=>b.onclick=()=>setMode(b.dataset.md));
+$('reset').onclick=reset;
+$('play').onclick=()=>{playing=!playing;$('play').textContent=playing?'Pause':'Play';$('play').setAttribute('aria-pressed',playing)};
+$('a').oninput=e=>{th=+e.target.value*D;w=0;playing=false;$('play').textContent='Play';$('play').setAttribute('aria-pressed',false);lastS=sgnA()};
+function arrow(g,x0,y0,x1,y1,c,wd){const dx=x1-x0,dy=y1-y0,L=Math.hypot(dx,dy);if(L<3)return;const ux=dx/L,uy=dy/L;g.strokeStyle=c;g.fillStyle=c;g.lineWidth=wd;g.beginPath();g.moveTo(x0,y0);g.lineTo(x1-9*ux,y1-9*uy);g.stroke();g.beginPath();g.moveTo(x1,y1);g.lineTo(x1-14*ux-6*uy,y1-14*uy+6*ux);g.lineTo(x1-14*ux+6*uy,y1-14*uy-6*ux);g.fill()}
+function main(Fn,sg){const g=mg,cx=280,cy=225,R=90,ink=css('--ink'),iron=css('--iron'),iron2=css('--iron2'),Fc=css('--F'),Ic=css('--I'),Ac=css('--A'),Bc=css('--B'),mute=css('--mute'),panel=css('--panel');
+g.clearRect(0,0,560,430);
+g.lineWidth=3;g.strokeStyle=iron;g.fillStyle=iron2;
+g.beginPath();g.moveTo(30,95);g.lineTo(115,95);g.quadraticCurveTo(165,225,115,355);g.lineTo(30,355);g.closePath();g.fill();g.stroke();
+g.beginPath();g.moveTo(530,95);g.lineTo(445,95);g.quadraticCurveTo(395,225,445,355);g.lineTo(530,355);g.closePath();g.fill();g.stroke();
+g.font='bold 40px Trebuchet MS, sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillStyle=css('--N');g.fillText('N',72,225);g.fillStyle=css('--S');g.fillText('S',488,225);
+const bs=$('b').value/100;g.globalAlpha=.25+.75*bs;for(const y of[130,175,275,320]){arrow(g,175,y,385,y,css('--S'),2)}g.globalAlpha=1;
+g.fillStyle=mute;g.font='13px sans-serif';g.fillText('field B (N to S)',cx,100);
+g.setLineDash([6,6]);g.strokeStyle=mute;g.lineWidth=1.5;g.beginPath();g.moveTo(cx,115);g.lineTo(cx,350);g.stroke();g.setLineDash([]);g.fillText('neutral plane',cx,368);
+g.setLineDash([4,6]);g.strokeStyle=iron;g.beginPath();g.arc(cx,cy,R,0,TAU);g.stroke();g.setLineDash([]);
+const ax=cx+R*Math.cos(th),ay=cy+R*Math.sin(th),bx=cx-R*Math.cos(th),by=cy-R*Math.sin(th);
+g.strokeStyle=ink;g.lineWidth=6;g.lineCap='round';g.beginPath();g.moveTo(ax,ay);g.lineTo(bx,by);g.stroke();g.lineCap='butt';
+g.beginPath();g.arc(cx,cy,9,0,TAU);g.fillStyle=panel;g.fill();g.strokeStyle=ink;g.lineWidth=2;g.stroke();
+[[ax,ay,sg,'A',Ac],[bx,by,-sg,'B',Bc]].forEach(([x,y,s,l,c])=>{
+const L=22+62*Fn;if(s>0)arrow(g,x,y-18,x,y-18-L,Fc,6);else arrow(g,x,y+18,x,y+18+L,Fc,6);
+g.fillStyle=Fc;g.font='bold 20px Trebuchet MS, sans-serif';g.textAlign='left';g.fillText('F',x+12,s>0?y-18-L/2:y+18+L/2);
+g.beginPath();g.arc(x,y,16,0,TAU);g.fillStyle=panel;g.fill();g.strokeStyle=c;g.lineWidth=4;g.stroke();
+g.strokeStyle=Ic;g.fillStyle=Ic;g.lineWidth=3;if(s>0){g.beginPath();g.arc(x,y,4.5,0,TAU);g.fill()}else{g.beginPath();g.moveTo(x-7,y-7);g.lineTo(x+7,y+7);g.moveTo(x+7,y-7);g.lineTo(x-7,y+7);g.stroke()}
+g.fillStyle=c;g.font='bold 16px Trebuchet MS, sans-serif';g.textAlign='center';g.fillText(l,x+(x<cx?-28:28),y)});
+if(flash>0){g.globalAlpha=Math.min(1,flash);g.fillStyle='#e6a700';g.font='bold 20px Trebuchet MS, sans-serif';g.textAlign='center';g.fillText('Commutator reverses the current!',cx,40);g.globalAlpha=1}}
+function comm(){const g=cg,W=270,H=200,Ac=css('--A'),Bc=css('--B'),ink=css('--ink'),mute=css('--mute');g.clearRect(0,0,W,H);
+g.fillStyle=mute;g.font='12px sans-serif';g.textAlign='center';g.fillText(mode==='on'?'Split-ring commutator (turns with the coil)':'Two slip rings (no reversal)',W/2,16);
+const brush=(x,y,s)=>{g.fillStyle='#2b2f33';g.fillRect(x,y-9,34,18);g.strokeStyle=ink;g.lineWidth=1.5;g.strokeRect(x,y-9,34,18);g.fillStyle=ink;g.font='bold 15px sans-serif';g.fillText(s,x+17,y-14)};
+if(mode==='on'){const x=135,y=100,r=46;g.lineWidth=15;
+[[th,Ac],[th+Math.PI,Bc]].forEach(([c,col])=>{g.strokeStyle=col;g.beginPath();g.arc(x,y,r,c-Math.PI/2+.12,c+Math.PI/2-.12);g.stroke()});
+g.fillStyle=Ac;g.font='bold 14px sans-serif';g.fillText('A',x+22*Math.cos(th),y+22*Math.sin(th)+5);g.fillStyle=Bc;g.fillText('B',x-22*Math.cos(th),y-22*Math.sin(th)+5);
+brush(x-r-44,y,'+');brush(x+r+10,y,'−');
+g.fillStyle=mute;g.font='12px sans-serif';g.fillText('Each brush always touches the half',W/2,170);g.fillText('that is on its side of the neutral plane.',W/2,186)}
+else{[[75,Ac,0],[195,Bc,Math.PI]].forEach(([x,col,o])=>{g.strokeStyle=col;g.lineWidth=12;g.beginPath();g.arc(x,100,32,0,TAU);g.stroke();g.fillStyle=ink;g.beginPath();g.arc(x+32*Math.cos(th+o),100+32*Math.sin(th+o),5,0,TAU);g.fill()});
+brush(2,100,'+');brush(234,100,'−');g.fillStyle=Ac;g.font='bold 14px sans-serif';g.fillText('A',75,105);g.fillStyle=Bc;g.fillText('B',195,105);
+g.fillStyle=mute;g.font='12px sans-serif';g.fillText('Each end of the coil stays on the same',W/2,170);g.fillText('brush, so the current never reverses.',W/2,186)}}
+function torq(tn){const g=tg,W=270,H=200,l=34,r=8,t=26,b=34,pw=W-l-r,ph=H-t-b,mute=css('--mute'),ink=css('--ink');g.clearRect(0,0,W,H);
+const X=a=>l+a/360*pw,Y=v=>t+ph/2-v*ph/2;
+g.fillStyle=mute;g.font='12px sans-serif';g.textAlign='center';g.fillText('Torque against coil angle',W/2,16);
+g.strokeStyle=css('--line');g.lineWidth=1;g.beginPath();g.moveTo(l,Y(0));g.lineTo(W-r,Y(0));g.stroke();
+g.setLineDash([3,4]);[90,270].forEach(a=>{g.beginPath();g.moveTo(X(a),t);g.lineTo(X(a),H-b);g.stroke()});g.setLineDash([]);
+[0,90,180,270,360].forEach(a=>g.fillText(a+'°',X(a),H-b+14));g.fillText('neutral planes at 90° and 270°',W/2,H-6);
+g.textAlign='left';g.fillText('+',6,Y(1)+4);g.fillText('−',8,Y(-1)+4);
+const cv=(f,c,wd,d)=>{g.strokeStyle=c;g.lineWidth=wd;g.setLineDash(d);g.beginPath();for(let a=0;a<=360;a+=3){const px=X(a),py=Y(f(a*D));a?g.lineTo(px,py):g.moveTo(px,py)}g.stroke();g.setLineDash([])};
+const on=a=>Math.abs(Math.cos(a)),off=a=>-Math.cos(a);
+cv(mode==='on'?off:on,mute,1.5,[4,4]);cv(mode==='on'?on:off,css('--F'),3,[]);
+const a=((th/D)%360+360)%360;g.fillStyle=ink;g.beginPath();g.arc(X(a),Y(tn),5,0,TAU);g.fill()}
+function status(sg){const c=Math.cos(th);let t;
+if(Math.abs(c)<.13)t=mode==='on'?'<b>Neutral plane.</b> The forces now point along the coil, so the torque is zero. Here the commutator swaps the brushes, so each side’s current reverses and the torque stays in the same direction.':'<b>Neutral plane.</b> The torque is zero. With no reversal, each side keeps its current direction as it crosses, so the forces will now push the coil the wrong way.';
+else{const left=c<0?'A':'B',right=c<0?'B':'A';
+if(sg*(c<0?1:-1)>0&&mode==='on')t='<b>Side '+left+' (left) carries current out of the page, so its force is up. Side '+right+' (right) carries current in, so its force is down.</b> The two forces make a couple that turns the coil clockwise.';
+else if(mode==='on')t='Current out on the left, in on the right: force up on the left, down on the right. A clockwise couple.';
+else{const right_out=c>0;t=right_out?'<b>Side A has crossed to the right but still carries current out, so its force is still up.</b> Side B on the left still has force down. The torque has reversed, so the coil is pushed back towards the neutral plane.':'<b>Side A (left) carries current out, so its force is up, and side B (right) carries current in, so its force is down.</b> Clockwise torque, but only until the coil reaches the neutral plane.'}}
+return t}
+function loop(now){const dt=Math.min(.04,(now-last)/1000);last=now;
+const Fn=$('b').value/100*$('i').value/100,sg=sgnA(),tn=-sg*Math.cos(th)*Fn;
+if(playing){w+=(tn*7-w*($('f').value/100))*dt;th=(th+w*dt+TAU)%TAU;if(mode==='on'&&sgnA()!==lastS){flash=1}lastS=sgnA();$('a').value=Math.floor(th/D)%360}
+flash=Math.max(0,flash-dt*1.4);
+const s2=sgnA(),tn2=-s2*Math.cos(th)*Fn;
+main(Fn,s2);comm();torq(mode==='on'?Math.abs(Math.cos(th)):-Math.cos(th));
+$('av').textContent=(th/D).toFixed(0)+'°';$('iv').textContent=$('i').value+' %';$('bv').textContent=$('b').value+' %';$('fv').textContent=($('f').value/100).toFixed(1);
+$('ra').textContent=(s2>0?'out, up':'in, down');$('rb').textContent=(s2>0?'in, down':'out, up');
+$('rt').textContent=(tn2>=0?'+':'')+tn2.toFixed(2)+(tn2>.01?' (clockwise)':tn2<-.01?' (anticlockwise)':'');
+$('rs').textContent=(w/TAU).toFixed(2)+' rev/s';
+$('st').innerHTML=status(s2);requestAnimationFrame(loop)}
+requestAnimationFrame(loop);
+</script></body></html>
