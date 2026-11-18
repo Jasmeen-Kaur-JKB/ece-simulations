@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shaded-pole motor: field sweeping in slow motion</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root { box-sizing: border-box; }
+  *, *::before, *::after { box-sizing: inherit; }
+  html, body { margin: 0; min-height: 100%; }
+  body {
+    background: #1d2b25;
+    font-family: 'Quicksand', 'Josefin Sans', system-ui, sans-serif;
+    color: #F1EFE8;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 16px;
+  }
+  main { width: 100%; max-width: 520px; }
+  svg { display: block; width: 100%; height: auto; }
+  svg text { font-family: 'Quicksand', 'Josefin Sans', system-ui, sans-serif; }
+  .controls { display: flex; align-items: center; gap: 14px; margin-top: 14px; }
+  button {
+    font: inherit; font-weight: 500; font-size: 15px;
+    min-width: 96px; padding: 8px 14px;
+    background: transparent; color: #F1EFE8;
+    border: 2px solid #B4B2A9; border-radius: 8px; cursor: pointer;
+  }
+  button:hover { border-color: #FAC775; color: #FAC775; }
+  button:focus-visible, input[type=range]:focus-visible { outline: 3px solid #85B7EB; outline-offset: 2px; }
+  input[type=range] { flex: 1; accent-color: #FAC775; height: 28px; }
+</style>
+</head>
+<body>
+<main>
+<svg viewBox="0 0 380 410" role="img" aria-labelledby="t d">
+<title id="t">Animation: the field sweeping across a shaded pole</title>
+<desc id="d">A pole face split into an unshaded half and a ringed shaded half. A hot spot slides from the unshaded half to the shaded half while bars show the flux in each half and the rotor surface below moves along.</desc>
+<defs><clipPath id="rc"><rect x="30" y="196" width="320" height="30"/></clipPath></defs>
+<rect x="4" y="4" width="372" height="402" rx="6" fill="#2F4A3F" stroke="#8A6A45" stroke-width="4"/>
+<text x="190" y="32" text-anchor="middle" font-size="17" font-weight="500" fill="#F1EFE8">Field sweeping, in slow motion</text>
+<rect id="fu" x="30" y="64" width="160" height="90" fill="#85B7EB" fill-opacity="0.4"/>
+<rect id="fs" x="190" y="64" width="160" height="90" fill="#85B7EB" fill-opacity="0"/>
+<rect x="30" y="64" width="320" height="90" fill="none" stroke="#F1EFE8" stroke-width="2"/>
+<line x1="190" y1="64" x2="190" y2="154" stroke="#B4B2A9" stroke-width="1.5" stroke-dasharray="4 3"/>
+<rect x="186" y="58" width="168" height="102" rx="6" fill="none" stroke="#F4C0D1" stroke-width="2.5"/>
+<text id="hsl" x="110" y="86" text-anchor="middle" font-size="12" fill="#FAC775">hot spot</text>
+<circle id="hs" cx="110" cy="116" r="15" fill="#FAC775" stroke="#F1EFE8" stroke-width="1.5"/>
+<text x="110" y="178" text-anchor="middle" font-size="13" fill="#F1EFE8">Unshaded half</text>
+<text x="270" y="178" text-anchor="middle" font-size="13" fill="#F4C0D1">Shaded half (in ring)</text>
+<rect x="30" y="196" width="320" height="30" fill="#3E5E50" stroke="#F1EFE8" stroke-width="2"/>
+<g id="ticks" clip-path="url(#rc)" stroke="#B4B2A9" stroke-width="2"></g>
+<text x="190" y="244" text-anchor="middle" font-size="12" fill="#85B7EB">Rotor surface, dragged along →</text>
+<text x="30" y="272" font-size="12" fill="#F1EFE8">Flux in unshaded half</text>
+<rect x="30" y="278" width="320" height="10" fill="none" stroke="#B4B2A9" stroke-width="1"/>
+<rect id="bu" x="30" y="278" width="0" height="10" fill="#F1EFE8"/>
+<text x="30" y="308" font-size="12" fill="#F4C0D1">Flux in shaded half (always a bit late)</text>
+<rect x="30" y="314" width="320" height="10" fill="none" stroke="#B4B2A9" stroke-width="1"/>
+<rect id="bs" x="30" y="314" width="0" height="10" fill="#F4C0D1"/>
+<text id="mom" x="20" y="352" font-size="14" font-weight="500" fill="#FAC775">Moment 1 of 3</text>
+<text id="l1" x="20" y="372" font-size="13" fill="#F1EFE8"></text>
+<text id="l2" x="20" y="390" font-size="13" fill="#F1EFE8"></text>
+</svg>
+<div class="controls">
+  <button id="play" type="button">Pause</button>
+  <input type="range" id="sl" min="60" max="180" step="1" value="60" aria-label="Time within the cycle">
+</div>
+</main>
+<script>
+var NS = 'http://www.w3.org/2000/svg';
+function $(i) { return document.getElementById(i); }
+var tg = $('ticks'), tk = [];
+for (var i = 0; i < 8; i++) {
+  var l = document.createElementNS(NS, 'line');
+  l.setAttribute('y1', '200'); l.setAttribute('y2', '222');
+  tg.appendChild(l); tk.push(l);
+}
+var caps = [
+  ['Moment 1 of 3', 'Unshaded half is strong,', 'shaded half is only just waking up.'],
+  ['Moment 2 of 3', 'Both halves are about equal,', 'the hot spot is in the middle.'],
+  ['Moment 3 of 3', 'Unshaded half is fading,', 'shaded half is now the strongest.']
+];
+var th = 60, hold = 0, last = null, lastM = -1;
+var playing = !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+function render() {
+  var r = th * Math.PI / 180;
+  var fu = Math.max(0, Math.sin(r));
+  var fs = Math.max(0, Math.sin(r - Math.PI / 3));
+  var wu = fu * fu, ws = fs * fs;
+  var x = (110 * wu + 270 * ws) / (wu + ws);
+  $('hs').setAttribute('cx', Math.round(x * 10) / 10);
+  $('hsl').setAttribute('x', Math.round(x * 10) / 10);
+  $('fu').setAttribute('fill-opacity', (0.7 * fu).toFixed(2));
+  $('fs').setAttribute('fill-opacity', (0.7 * fs).toFixed(2));
+  $('bu').setAttribute('width', Math.round(320 * fu));
+  $('bs').setAttribute('width', Math.round(320 * fs));
+  var sh = (th - 60) / 120 * 80;
+  for (var i = 0; i < 8; i++) {
+    var px = 30 + ((i * 40 + sh) % 320);
+    tk[i].setAttribute('x1', px); tk[i].setAttribute('x2', px);
+  }
+  var m = th < 95 ? 0 : (th < 145 ? 1 : 2);
+  if (m !== lastM) {
+    lastM = m;
+    $('mom').textContent = caps[m][0];
+    $('l1').textContent = caps[m][1];
+    $('l2').textContent = caps[m][2];
+  }
+  $('sl').value = Math.round(th);
+}
+function setBtn() { $('play').textContent = playing ? 'Pause' : 'Play'; }
+function frame(t) {
+  if (last === null) last = t;
+  var dt = Math.min((t - last) / 1000, 0.1);
+  last = t;
+  if (playing) {
+    if (th >= 180) { hold += dt; if (hold > 1.2) { th = 60; hold = 0; } }
+    else { th = Math.min(180, th + 24 * dt); }
+    render();
+  }
+  requestAnimationFrame(frame);
+}
+$('play').addEventListener('click', function () {
+  playing = !playing;
+  if (playing && th >= 180) th = 60;
+  hold = 0; setBtn();
+});
+$('sl').addEventListener('input', function () {
+  playing = false; th = parseFloat(this.value); setBtn(); render();
+});
+setBtn(); render(); requestAnimationFrame(frame);
+</script>
+</body>
+</html>
